@@ -119,6 +119,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _renderTimeText = "Render: -- ms";
 
     [ObservableProperty]
+    private string _simTimeText = "T: 0.0000";
+
+    [ObservableProperty]
+    private string _totalEnergyText = "E: --";
+
+    [ObservableProperty]
+    private string _momentumText = "P: --";
+
+    [ObservableProperty]
     private SimulationState _simulationState = SimulationState.Idle;
 
     [ObservableProperty]
@@ -262,8 +271,20 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         CurrentProject = project;
         WindowTitle = $"Celestial Mechanics \u2014 {project.Name}";
 
+        // Seed default scene if the simulation has no bodies
+        var currentBodies = _simService.GetBodies();
+        if (currentBodies == null || currentBodies.Length == 0)
+        {
+            var defaultBodies = DefaultSceneFactory.CreateSolarSystem();
+            _simService.LoadBodies(defaultBodies);
+        }
+
+        // Rebuild scene graph from engine bodies
+        _sceneService.RepopulateFromSimulation(_simService);
+
         // Start simulation engine and UI timer
         _simService.StartSimThread();
+        _renderer.ClearTrails();
         _uiTimer.Start();
 
         NavState = NavigationState.SimulationIDE;
@@ -451,7 +472,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void EnterSimulateMode()
     {
-        CurrentMode = CurrentMode == UiMode.Simulate ? UiMode.Idle : UiMode.Simulate;
+        if (CurrentMode == UiMode.Simulate)
+        {
+            CurrentMode = UiMode.Idle;
+            _simService.Pause();
+        }
+        else
+        {
+            CurrentMode = UiMode.Simulate;
+            IsPlacingObject = false;
+            _simService.StartSimThread(); // idempotent
+            _simService.Play();
+        }
     }
 
     [RelayCommand]
@@ -613,11 +645,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ResetSimulation()
     {
+        _simService.Pause();
         _simService.ResetScene();
+
+        // Reload default solar system
+        var defaultBodies = DefaultSceneFactory.CreateSolarSystem();
+        _simService.LoadBodies(defaultBodies);
+
         _sceneService.RepopulateFromSimulation(_simService);
         _renderer.ClearTrails();
         _renderer.SelectedInstanceIndex = -1;
         BodyInspectorVm.ClearSelection();
+        SceneOutlinerVm.Refresh();
         CurrentMode = UiMode.Idle;
     }
 
@@ -675,6 +714,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         SimulationStateText = SimulationState.ToString();
 
         PhysicsTimeText = $"Physics: {_simService.LastPhysicsTimeMs:F1} ms";
+        SimTimeText = $"T: {_simService.LastSimTime:F4}";
+
+        // Read energy/momentum from last simulation state snapshot
+        var simState = _simService.LastSimState;
+        if (simState != null)
+        {
+            TotalEnergyText = $"E: {simState.TotalEnergy:E4}";
+            var mom = simState.TotalMomentum;
+            double pMag = System.Math.Sqrt(mom.X * mom.X + mom.Y * mom.Y + mom.Z * mom.Z);
+            MomentumText = $"P: {pMag:E4}";
+        }
 
         _simService.WithEngineLock(engine =>
         {

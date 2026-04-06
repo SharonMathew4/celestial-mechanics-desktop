@@ -423,6 +423,18 @@
             <StatusBarItem>
                 <TextBlock Text="{Binding RenderTimeText}"/>
             </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding SimTimeText}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding TotalEnergyText}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding MomentumText}"/>
+            </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <TextBlock Text="{Binding SimulationStateText}"
                            Foreground="{StaticResource AccentCyan}"

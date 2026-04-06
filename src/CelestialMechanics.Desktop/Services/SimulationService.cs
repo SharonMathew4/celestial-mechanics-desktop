@@ -156,6 +156,16 @@ public class SimulationService : IDisposable
         lock (_engineLock) _engine.RemoveBody(id);
     }
 
+    public void LoadBodies(PhysicsBody[] bodies)
+    {
+        lock (_engineLock) _engine.SetBodies(bodies);
+    }
+
+    public PhysicsBody[] GetBodies()
+    {
+        lock (_engineLock) return _engine.Bodies.ToArray();
+    }
+
     public void ApplyConfig(Action<PhysicsConfig> mutate)
     {
         lock (_engineLock)
