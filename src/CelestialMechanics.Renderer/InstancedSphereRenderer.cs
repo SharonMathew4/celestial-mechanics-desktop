@@ -13,8 +13,9 @@ public class InstancedSphereRenderer : IDisposable
     private int _instanceCount;
     private GL? _gl;
 
-    // Per-instance data: 4x4 matrix (16 floats) + color (4 floats) = 20 floats = 80 bytes
-    private const int InstanceStride = 20 * sizeof(float);
+    // Per-instance data: 4x4 matrix (16 floats) + color (4 floats) + bodyType (1 float) = 21 floats = 84 bytes
+    private const int FloatsPerInstance = 21;
+    private const int InstanceStride = FloatsPerInstance * sizeof(float);
     private float[] _instanceData = Array.Empty<float>();
 
     public void Initialize(GL gl)
@@ -69,6 +70,11 @@ public class InstancedSphereRenderer : IDisposable
         gl.VertexAttribPointer(6, 4, VertexAttribPointerType.Float, false, (uint)InstanceStride, 16 * sizeof(float));
         gl.VertexAttribDivisor(6, 1);
 
+        // Instance bodyType (location 7)
+        gl.EnableVertexAttribArray(7);
+        gl.VertexAttribPointer(7, 1, VertexAttribPointerType.Float, false, (uint)InstanceStride, 20 * sizeof(float));
+        gl.VertexAttribDivisor(7, 1);
+
         gl.BindVertexArray(0);
     }
 
@@ -77,7 +83,7 @@ public class InstancedSphereRenderer : IDisposable
         _instanceCount = count;
         if (count == 0) return;
 
-        int dataSize = count * 20;
+        int dataSize = count * FloatsPerInstance;
         if (_instanceData.Length < dataSize)
             _instanceData = new float[dataSize];
 
@@ -87,7 +93,7 @@ public class InstancedSphereRenderer : IDisposable
             float scale = body.Radius;
             var model = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(body.Position);
 
-            int offset = i * 20;
+            int offset = i * FloatsPerInstance;
             // Column-major for OpenGL
             _instanceData[offset + 0] = model.M11;
             _instanceData[offset + 1] = model.M21;
@@ -109,6 +115,7 @@ public class InstancedSphereRenderer : IDisposable
             _instanceData[offset + 17] = body.Color.Y;
             _instanceData[offset + 18] = body.Color.Z;
             _instanceData[offset + 19] = body.Color.W;
+            _instanceData[offset + 20] = (float)body.BodyType;
         }
 
         _gl!.BindBuffer(BufferTargetARB.ArrayBuffer, _instanceVbo);

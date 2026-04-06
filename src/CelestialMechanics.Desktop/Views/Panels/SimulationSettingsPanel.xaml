@@ -1,0 +1,189 @@
+<UserControl x:Class="CelestialMechanics.Desktop.Views.Panels.SimulationSettingsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:CelestialMechanics.Desktop.Converters">
+
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <DockPanel Background="{StaticResource BackgroundSecondary}">
+
+        <!-- Panel Header (matches BodyInspectorPanel) -->
+        <Border DockPanel.Dock="Top"
+                Style="{StaticResource PanelHeaderBorderStyle}">
+            <TextBlock Text="SETTINGS"
+                       Style="{StaticResource PanelHeaderTextStyle}"/>
+        </Border>
+
+        <!-- Footer: Apply + Close -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Stretch"
+                    Margin="8,8">
+            <Button Content="Apply"
+                    Style="{StaticResource GlowToggleButtonStyle}"
+                    Command="{Binding ApplyCommand}"
+                    Margin="0,0,4,0" MinWidth="60"/>
+            <Button Content="Close"
+                    Style="{StaticResource FlatButtonStyle}"
+                    Command="{Binding CloseCommand}"
+                    MinWidth="60"/>
+        </StackPanel>
+
+        <!-- Scrollable Settings -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="8">
+
+                <!-- INTEGRATOR -->
+                <GroupBox Header="INTEGRATOR"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Integration Method"
+                                   Style="{StaticResource InspectorLabelStyle}"/>
+                        <ComboBox ItemsSource="{Binding IntegratorNames}"
+                                  SelectedItem="{Binding IntegratorName, Mode=TwoWay}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- PERFORMANCE -->
+                <GroupBox Header="PERFORMANCE"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <CheckBox Content="Deterministic Mode"
+                                  IsChecked="{Binding DeterministicMode, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Parallel Computation"
+                                  IsChecked="{Binding UseParallelComputation, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="SIMD Vectorization"
+                                  IsChecked="{Binding UseSimd, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="SoA Data Path"
+                                  IsChecked="{Binding UseSoAPath, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- ALGORITHM -->
+                <GroupBox Header="ALGORITHM"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <CheckBox Content="Barnes-Hut Tree"
+                                  IsChecked="{Binding UseBarnesHut, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                    IsEnabled="{Binding IsThetaEnabled}">
+                            <TextBlock Text="Theta"
+                                       Style="{StaticResource InspectorLabelStyle}"
+                                       Width="40"/>
+                            <Slider Value="{Binding Theta, Mode=TwoWay}"
+                                    Minimum="0.0" Maximum="1.0"
+                                    Width="160"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Theta, StringFormat=F2}"
+                                       Foreground="{StaticResource CyanAccent}"
+                                       FontFamily="Consolas" FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- PHYSICS -->
+                <GroupBox Header="PHYSICS"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <CheckBox Content="Enable Collisions"
+                                  IsChecked="{Binding EnableCollisions, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Adaptive Timestep"
+                                  IsChecked="{Binding UseAdaptiveTimestep, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- TIMESTEP -->
+                <GroupBox Header="TIMESTEP"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="dt"
+                                   Style="{StaticResource InspectorLabelStyle}" Width="50"/>
+                        <TextBox   Grid.Row="0" Grid.Column="1"
+                                   Text="{Binding TimeStep, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=G4}"
+                                   Style="{StaticResource InspectorTextBoxStyle}" Margin="0,0,0,2"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Min dt"
+                                   Style="{StaticResource InspectorLabelStyle}"/>
+                        <TextBox   Grid.Row="1" Grid.Column="1"
+                                   Text="{Binding MinDt, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=G4}"
+                                   Style="{StaticResource InspectorTextBoxStyle}" Margin="0,0,0,2"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Max dt"
+                                   Style="{StaticResource InspectorLabelStyle}"/>
+                        <TextBox   Grid.Row="2" Grid.Column="1"
+                                   Text="{Binding MaxDt, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=G4}"
+                                   Style="{StaticResource InspectorTextBoxStyle}"/>
+                    </Grid>
+                </GroupBox>
+
+                <!-- RELATIVISTIC -->
+                <GroupBox Header="RELATIVISTIC"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <CheckBox Content="Post-Newtonian (1PN)"
+                                  IsChecked="{Binding EnablePostNewtonian, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Gravitational Lensing"
+                                  IsChecked="{Binding EnableGravitationalLensing, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Accretion Disks"
+                                  IsChecked="{Binding EnableAccretionDisks, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Gravitational Waves"
+                                  IsChecked="{Binding EnableGravitationalWaves, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Jet Emission"
+                                  IsChecked="{Binding EnableJetEmission, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- SOFTENING -->
+                <GroupBox Header="SOFTENING"
+                          Style="{StaticResource InspectorGroupBoxStyle}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Epsilon"
+                                       Style="{StaticResource InspectorLabelStyle}" Width="50"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SofteningEpsilon, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=G4}"
+                                     Style="{StaticResource InspectorTextBoxStyle}"/>
+                        </Grid>
+                        <TextBlock Text="Mode"
+                                   Style="{StaticResource InspectorLabelStyle}"
+                                   Margin="0,6,0,2"/>
+                        <ComboBox ItemsSource="{Binding SofteningModes}"
+                                  SelectedItem="{Binding SofteningMode, Mode=TwoWay}"/>
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

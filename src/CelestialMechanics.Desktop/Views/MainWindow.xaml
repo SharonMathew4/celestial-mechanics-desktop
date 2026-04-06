@@ -1,0 +1,433 @@
+<Window x:Class="CelestialMechanics.Desktop.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:CelestialMechanics.Desktop.Views"
+        xmlns:modals="clr-namespace:CelestialMechanics.Desktop.Views.Modals"
+        xmlns:panels="clr-namespace:CelestialMechanics.Desktop.Views.Panels"
+        xmlns:vm="clr-namespace:CelestialMechanics.Desktop.ViewModels"
+        xmlns:conv="clr-namespace:CelestialMechanics.Desktop.Converters"
+        Title="{Binding WindowTitle}"
+        Width="1600" Height="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BackgroundPrimary}">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}"/>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}"/>
+        <KeyBinding Key="Delete" Command="{Binding DeleteSelectedBodyCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Row 0: Top Menu Bar (IDE mode only) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 1: Viewport Layered Container -->
+            <RowDefinition Height="*"/>
+            <!-- Row 2: Control Bar (IDE mode only) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 3: Status Bar (IDE mode only) -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             ROW 0 – TOP MENU BAR (visible only when IDE is active)
+             ═══════════════════════════════════════════════════════════ -->
+        <Menu Grid.Row="0" Style="{StaticResource MenuBarStyle}"
+              Visibility="{Binding IsIdeActive, Converter={StaticResource BoolToVis}}">
+            <MenuItem Header="_File" Style="{StaticResource MenuBarItemStyle}">
+                <MenuItem Header="New Simulation"
+                          Command="{Binding NewSimulationCommand}"/>
+                <MenuItem Header="Open..."
+                          Command="{Binding OpenCommand}"
+                          InputGestureText="Ctrl+O"/>
+                <MenuItem Header="Save"
+                          Command="{Binding SaveCommand}"
+                          InputGestureText="Ctrl+S"/>
+                <Separator/>
+                <MenuItem Header="Exit"
+                          Command="{Binding ExitCommand}"/>
+            </MenuItem>
+            <MenuItem Header="_Edit" Style="{StaticResource MenuBarItemStyle}">
+                <MenuItem Header="Delete Selected"
+                          Command="{Binding DeleteSelectedBodyCommand}"
+                          InputGestureText="Del"/>
+            </MenuItem>
+            <MenuItem Header="_View" Style="{StaticResource MenuBarItemStyle}">
+                <MenuItem Header="Scene Outliner" IsCheckable="True"
+                          IsChecked="{Binding ShowSceneOutliner, Mode=TwoWay}"/>
+                <MenuItem Header="Inspector" IsCheckable="True"
+                          IsChecked="{Binding ShowInspector, Mode=TwoWay}"/>
+                <Separator/>
+                <MenuItem Header="Grid" IsCheckable="True"
+                          IsChecked="{Binding ShowGrid, Mode=TwoWay}"/>
+                <MenuItem Header="Velocity Arrows" IsCheckable="True"
+                          IsChecked="{Binding ShowVelocityArrows, Mode=TwoWay}"/>
+                <MenuItem Header="Starfield" IsCheckable="True"
+                          IsChecked="{Binding ShowStarfield, Mode=TwoWay}"/>
+                <MenuItem Header="Orbit Trails" IsCheckable="True"
+                          IsChecked="{Binding ShowTrails, Mode=TwoWay}"/>
+                <Separator/>
+                <MenuItem Header="Control Bar" IsCheckable="True"
+                          IsChecked="{Binding ShowControlBar, Mode=TwoWay}"/>
+                <MenuItem Header="Status Bar" IsCheckable="True"
+                          IsChecked="{Binding ShowStatusBar, Mode=TwoWay}"/>
+            </MenuItem>
+            <MenuItem Header="_Help" Style="{StaticResource MenuBarItemStyle}"/>
+        </Menu>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             ROW 1 – LAYERED VIEWPORT CONTAINER
+             Layer 0 = Background video (blurred, semi-transparent)
+             Layer 1 = IDE 3-column workspace (Outliner | Viewport | TabControl)
+             Layer 2 = Modal Navigation Overlay
+             ═══════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="1">
+
+            <!-- ── Layer 0: Background Video (blurred, behind modals) ── -->
+            <MediaElement x:Name="BackgroundVideo"
+                          Stretch="UniformToFill"
+                          LoadedBehavior="Manual"
+                          UnloadedBehavior="Manual"
+                          IsHitTestVisible="False"
+                          Opacity="0.4"
+                          Visibility="{Binding IsModalVisible, Converter={StaticResource BoolToVis}}">
+                <MediaElement.Effect>
+                    <BlurEffect Radius="20"/>
+                </MediaElement.Effect>
+            </MediaElement>
+
+            <!-- Fallback dark background when video is not available -->
+            <Border Background="{StaticResource BackgroundPrimary}"
+                    IsHitTestVisible="False"
+                    Visibility="{Binding IsModalVisible, Converter={StaticResource BoolToVis}}"/>
+
+            <!-- ── Layer 1: IDE 3-Column Workspace ─────────────────── -->
+            <Grid Visibility="{Binding IsIdeActive, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <!-- Col 0: Scene Outliner (left panel) -->
+                    <ColumnDefinition Width="220" MinWidth="150" MaxWidth="400"/>
+                    <!-- Col 1: GridSplitter -->
+                    <ColumnDefinition Width="4"/>
+                    <!-- Col 2: Center viewport area -->
+                    <ColumnDefinition Width="*" MinWidth="400"/>
+                    <!-- Col 3: GridSplitter -->
+                    <ColumnDefinition Width="4"/>
+                    <!-- Col 4: Right panel (Inspector + Settings tabs) -->
+                    <ColumnDefinition Width="260" MinWidth="200" MaxWidth="500"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ── Left Panel: Scene Outliner ─────────────────── -->
+                <panels:SceneOutlinerPanel
+                    Grid.Column="0"
+                    DataContext="{Binding SceneOutlinerVm}"
+                    Visibility="{Binding DataContext.ShowSceneOutliner,
+                                 RelativeSource={RelativeSource AncestorType=Window},
+                                 Converter={StaticResource BoolToVis}}"/>
+
+                <!-- Left GridSplitter -->
+                <GridSplitter Grid.Column="1" Width="4"
+                              Visibility="{Binding ShowSceneOutliner,
+                                           Converter={StaticResource BoolToVis}}"/>
+
+                <!-- ── Center: Body Type Palette + Viewport ──────── -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Body Type Palette (visible only in Add mode) -->
+                    <panels:BodyTypePalette
+                        Grid.Row="0"
+                        Visibility="{Binding DataContext.IsAddMode,
+                                     RelativeSource={RelativeSource AncestorType=Window},
+                                     Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- OpenGL Viewport -->
+                    <views:ViewportPanel x:Name="Viewport" Grid.Row="1"/>
+                </Grid>
+
+                <!-- Right GridSplitter -->
+                <GridSplitter Grid.Column="3" Width="4"
+                              Visibility="{Binding ShowInspector,
+                                           Converter={StaticResource BoolToVis}}"/>
+
+                <!-- ── Right Panel: TabControl (Inspector + Settings) ── -->
+                <TabControl Grid.Column="4"
+                            Style="{StaticResource SpaceTabControlStyle}"
+                            SelectedIndex="{Binding RightPanelTabIndex, Mode=TwoWay}"
+                            Visibility="{Binding DataContext.ShowInspector,
+                                         RelativeSource={RelativeSource AncestorType=Window},
+                                         Converter={StaticResource BoolToVis}}">
+                    <TabItem Header="Inspector" Style="{StaticResource SpaceTabItemStyle}">
+                        <panels:BodyInspectorPanel
+                            DataContext="{Binding BodyInspectorVm}"/>
+                    </TabItem>
+                    <TabItem Header="Settings" Style="{StaticResource SpaceTabItemStyle}">
+                        <panels:SimulationSettingsPanel
+                            DataContext="{Binding SimulationSettingsVm}"/>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+
+            <!-- ── Layer 2: Modal Navigation Overlay ─────────────────── -->
+            <Grid Visibility="{Binding IsModalVisible, Converter={StaticResource BoolToVis}}"
+                  Background="{StaticResource ModalOverlay}">
+
+                <!-- Mode Selection -->
+                <modals:ModeSelectionModal
+                    DataContext="{Binding ModeSelectionVm}">
+                    <modals:ModeSelectionModal.Style>
+                        <Style TargetType="modals:ModeSelectionModal">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.NavState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Value="{x:Static vm:NavigationState.ModeSelection}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </modals:ModeSelectionModal.Style>
+                </modals:ModeSelectionModal>
+
+                <!-- Simulation Menu -->
+                <modals:SimulationMenuModal
+                    DataContext="{Binding SimulationMenuVm}">
+                    <modals:SimulationMenuModal.Style>
+                        <Style TargetType="modals:SimulationMenuModal">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.NavState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Value="{x:Static vm:NavigationState.SimulationMenu}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </modals:SimulationMenuModal.Style>
+                </modals:SimulationMenuModal>
+
+                <!-- New Project -->
+                <modals:NewProjectModal
+                    DataContext="{Binding NewProjectVm}">
+                    <modals:NewProjectModal.Style>
+                        <Style TargetType="modals:NewProjectModal">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.NavState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Value="{x:Static vm:NavigationState.NewProject}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </modals:NewProjectModal.Style>
+                </modals:NewProjectModal>
+
+                <!-- Projects List -->
+                <modals:ProjectsListModal
+                    DataContext="{Binding ProjectsListVm}">
+                    <modals:ProjectsListModal.Style>
+                        <Style TargetType="modals:ProjectsListModal">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.NavState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Value="{x:Static vm:NavigationState.ProjectsList}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </modals:ProjectsListModal.Style>
+                </modals:ProjectsListModal>
+
+                <!-- File Menu -->
+                <modals:FileMenuModal
+                    DataContext="{Binding FileMenuVm}">
+                    <modals:FileMenuModal.Style>
+                        <Style TargetType="modals:FileMenuModal">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DataContext.NavState, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             Value="{x:Static vm:NavigationState.FileMenu}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </modals:FileMenuModal.Style>
+                </modals:FileMenuModal>
+            </Grid>
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             ROW 2 – CONTROL BAR (visible only when IDE is active)
+             Moved to its own row to avoid WPF airspace conflict with
+             the OpenGL HwndHost in the viewport.
+             ═══════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="2"
+                Height="70"
+                Margin="40,0,40,0"
+                CornerRadius="20,20,0,0"
+                BorderThickness="0"
+                Visibility="{Binding IsControlBarVisible, Converter={StaticResource BoolToVis}}">
+            <Border.Background>
+                <SolidColorBrush Color="{StaticResource ControlBarBackgroundColor}"
+                                 Opacity="0.85"/>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="20"
+                                  ShadowDepth="0" Opacity="0.5"/>
+            </Border.Effect>
+
+            <Grid Margin="24,0">
+                <Grid.ColumnDefinitions>
+                    <!-- Left: Mode buttons -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Center: Time flow slider -->
+                    <ColumnDefinition Width="*"/>
+                    <!-- Right: Sim data + playback control -->
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ── LEFT GROUP: Mode Buttons ──────────────────── -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Button Content="Add" Command="{Binding EnterAddModeCommand}"
+                            ToolTip="Add celestial body (left-click to place, right-click to cancel)"
+                            Margin="0,0,6,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ModeButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAddMode}" Value="True">
+                                        <Setter Property="Background" Value="#1A00C8FF"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource CyanAccent}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource CyanAccent}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Simulate" Command="{Binding EnterSimulateModeCommand}"
+                            ToolTip="Simulate mode" Margin="0,0,6,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ModeButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSimulateMode}" Value="True">
+                                        <Setter Property="Background" Value="#1A00C8FF"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource CyanAccent}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource CyanAccent}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Edit" Command="{Binding EnterEditModeCommand}"
+                            ToolTip="Edit selected object (click to select, edit properties)"
+                            Margin="0,0,6,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ModeButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditMode}" Value="True">
+                                        <Setter Property="Background" Value="#1A00C8FF"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource CyanAccent}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource CyanAccent}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Analysis" Command="{Binding EnterAnalyseModeCommand}"
+                            ToolTip="Analysis mode" Margin="0,0,6,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ModeButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsAnalyseMode}" Value="True">
+                                        <Setter Property="Background" Value="#1A00C8FF"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource CyanAccent}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource CyanAccent}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="Settings" Style="{StaticResource ModeButtonStyle}"
+                            Command="{Binding OpenSettingsCommand}"
+                            ToolTip="Simulation settings"/>
+                </StackPanel>
+
+                <!-- ── CENTER: Time Flow Slider ──────────────────── -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="Time Flow" Foreground="{StaticResource TextSecondary}"
+                               FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Slider Style="{StaticResource CyanSliderStyle}"
+                            Value="{Binding TimeScale, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding TimeScale, StringFormat={}{0:F1}x}"
+                               Foreground="{StaticResource CyanAccent}"
+                               FontFamily="Consolas" FontSize="12"
+                               VerticalAlignment="Center" Margin="10,0,0,0"
+                               MinWidth="44"/>
+                </StackPanel>
+
+                <!-- ── RIGHT GROUP: Sim Data + Playback ─────────── -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <!-- Simulation Data -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="{Binding BodyCountText}"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="10" FontFamily="Consolas"
+                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Text="{Binding SimulationStateText}"
+                                   Foreground="{StaticResource CyanAccent}"
+                                   FontSize="10" FontFamily="Consolas" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Play/Pause/Reset -->
+                    <Button Content="Play"
+                            Style="{StaticResource GlowToggleButtonStyle}"
+                            Command="{Binding StartSimulationCommand}"
+                            Margin="0,0,6,0" Width="68"/>
+                    <Button Content="Pause"
+                            Style="{StaticResource GlowToggleButtonStyle}"
+                            Command="{Binding PauseSimulationCommand}"
+                            Margin="0,0,6,0" Width="68"/>
+                    <Button Content="Reset"
+                            Style="{StaticResource GlowToggleButtonStyle}"
+                            Command="{Binding ResetSimulationCommand}"
+                            Width="68"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             ROW 3 – STATUS BAR (IDE mode only)
+             ═══════════════════════════════════════════════════════════ -->
+        <StatusBar Grid.Row="3" Style="{StaticResource CompactStatusBarStyle}"
+                   Visibility="{Binding IsStatusBarVisible, Converter={StaticResource BoolToVis}}">
+            <StatusBarItem>
+                <TextBlock Text="{Binding FpsText}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding BodyCountText}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding PhysicsTimeText}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding RenderTimeText}"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding SimulationStateText}"
+                           Foreground="{StaticResource AccentCyan}"
+                           FontWeight="SemiBold"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

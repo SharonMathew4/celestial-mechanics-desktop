@@ -1,0 +1,74 @@
+<UserControl x:Class="CelestialMechanics.Desktop.Views.Panels.BodyTypePalette"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <Border Background="{StaticResource ControlBarBackground}"
+            BorderBrush="{StaticResource BorderPrimary}"
+            BorderThickness="0,0,0,1"
+            Height="44">
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+
+            <TextBlock Text="Body Type:"
+                       Foreground="{StaticResource TextSecondary}"
+                       FontSize="11"
+                       VerticalAlignment="Center"
+                       Margin="0,0,10,0"/>
+
+            <!-- Star -->
+            <Button Content="&#x2605; Star"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="{x:Static Member=sys:Int32.MinValue}"
+                    Tag="Star"/>
+            <!-- Planet -->
+            <Button Content="&#x25CF; Planet"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="Planet"/>
+            <!-- GasGiant -->
+            <Button Content="&#x25C9; Gas Giant"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="GasGiant"/>
+            <!-- RockyPlanet -->
+            <Button Content="&#x25AA; Rocky"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="RockyPlanet"/>
+            <!-- Moon -->
+            <Button Content="&#x25E6; Moon"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="Moon"/>
+            <!-- Asteroid -->
+            <Button Content="&#x25C7; Asteroid"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="Asteroid"/>
+            <!-- NeutronStar -->
+            <Button Content="&#x2726; Neutron"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="NeutronStar"/>
+            <!-- BlackHole -->
+            <Button Content="&#x25EF; Black Hole"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="BlackHole"/>
+            <!-- Comet -->
+            <Button Content="&#x2604; Comet"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="Comet"/>
+            <!-- Custom -->
+            <Button Content="&#x25C8; Custom"
+                    Style="{StaticResource BodyTypePaletteButtonStyle}"
+                    Command="{Binding DataContext.SelectBodyTypeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    Tag="Custom"/>
+
+        </StackPanel>
+    </Border>
+</UserControl>

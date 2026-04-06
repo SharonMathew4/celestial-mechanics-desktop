@@ -11,6 +11,7 @@ public class SimulationEngine
 {
     private PhysicsBody[] _bodies;
     private NBodySolver _solver;
+    private NewtonianGravity _newtonianGravity;
     private double _accumulator;
     private double _fixedDt;
     private SimulationState _currentState;
@@ -34,11 +35,12 @@ public class SimulationEngine
         _bodies = Array.Empty<PhysicsBody>();
         _solver = new NBodySolver();
         // Add default Newtonian gravity and Verlet integrator
-        _solver.AddForce(new NewtonianGravity
+        _newtonianGravity = new NewtonianGravity
         {
             SofteningEpsilon = _config.SofteningEpsilon,
             RangeScale = _config.GravityRangeScale
-        });
+        };
+        _solver.AddForce(_newtonianGravity);
         _solver.SetIntegrator(new VerletIntegrator());
 
         // Wire SoA path from config. SoA is only available for the Verlet
@@ -161,6 +163,32 @@ public class SimulationEngine
         double dtAdaptive = eta / System.Math.Sqrt(System.Math.Sqrt(maxAcc2));
 
         return System.Math.Clamp(dtAdaptive, _config.MinDt, _config.MaxDt);
+    }
+
+    public void ApplyConfig()
+    {
+        _fixedDt = _config.TimeStep;
+        _newtonianGravity.SofteningEpsilon = _config.SofteningEpsilon;
+        _newtonianGravity.RangeScale = _config.GravityRangeScale;
+
+        bool soaCapable = GetIntegratorName() == "Verlet";
+        _solver.ConfigureSoA(
+            enabled:                  soaCapable && _config.UseSoAPath,
+            softening:                _config.SofteningEpsilon,
+            deterministic:            _config.DeterministicMode,
+            useParallel:              _config.UseParallelComputation,
+            useBarnesHut:             _config.UseBarnesHut,
+            theta:                    _config.Theta,
+            enableCollisions:         _config.EnableCollisions,
+            useSimd:                  _config.UseSimd,
+            enablePostNewtonian:      _config.EnablePostNewtonian,
+            enableAccretionDisks:     _config.EnableAccretionDisks,
+            enableGravitationalWaves: _config.EnableGravitationalWaves,
+            maxAccretionParticles:    _config.MaxAccretionParticles,
+            enableJets:               _config.EnableJetEmission,
+            jetThreshold:             _config.AccretionJetThreshold,
+            gwObserverDistance:       _config.GravitationalWaveObserverDistance
+        );
     }
 
     public void SetIntegrator(string name)

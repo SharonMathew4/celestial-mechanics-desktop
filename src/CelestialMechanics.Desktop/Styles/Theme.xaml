@@ -1,0 +1,474 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Phase 1+2  ·  Cinematic Dark Theme
+         Extends the existing SpaceDarkTheme; adds new styles for
+         the menu bar, bottom control bar, startup modal overlay, and
+         flat / glow button variants.
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Themes/SpaceDarkTheme.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <!-- ── Additional Cinematic Colors ─────────────────────────────── -->
+    <Color x:Key="PanelBackgroundColor">#FF161B22</Color>
+    <Color x:Key="MenuBarBackgroundColor">#FF11151C</Color>
+    <Color x:Key="ControlBarBackgroundColor">#FF1A1F2B</Color>
+    <Color x:Key="CyanAccentColor">#FF00C8FF</Color>
+    <Color x:Key="ModalOverlayColor">#99000000</Color>
+    <Color x:Key="ModalPanelColor">#FF161B22</Color>
+
+    <SolidColorBrush x:Key="PanelBackground"   Color="{StaticResource PanelBackgroundColor}"/>
+    <SolidColorBrush x:Key="MenuBarBackground"  Color="{StaticResource MenuBarBackgroundColor}"/>
+    <SolidColorBrush x:Key="ControlBarBackground" Color="{StaticResource ControlBarBackgroundColor}"/>
+    <SolidColorBrush x:Key="CyanAccent"         Color="{StaticResource CyanAccentColor}"/>
+    <SolidColorBrush x:Key="ModalOverlay"       Color="{StaticResource ModalOverlayColor}"/>
+    <SolidColorBrush x:Key="ModalPanel"         Color="{StaticResource ModalPanelColor}"/>
+
+    <!-- ── Menu Bar Style ──────────────────────────────────────────── -->
+    <Style x:Key="MenuBarStyle" TargetType="Menu">
+        <Setter Property="Background" Value="{StaticResource MenuBarBackground}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="FontSize"   Value="13"/>
+        <Setter Property="Height"     Value="32"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style x:Key="MenuBarItemStyle" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="Padding"    Value="10,4"/>
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="{StaticResource SurfaceHover}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- ── Flat Button (control bar tools) ─────────────────────────── -->
+    <Style x:Key="FlatButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderThickness"  Value="0"/>
+        <Setter Property="Padding"          Value="14,6"/>
+        <Setter Property="FontSize"         Value="12"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource Surface}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Mode Button (Add/Edit/Analyse/Settings – supports active state via DataTrigger) ── -->
+    <Style x:Key="ModeButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderBrush"      Value="Transparent"/>
+        <Setter Property="BorderThickness"  Value="1"/>
+        <Setter Property="Padding"          Value="16,8"/>
+        <Setter Property="FontSize"         Value="12"/>
+        <Setter Property="FontWeight"       Value="SemiBold"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#00C8FF" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                            <Setter TargetName="bg" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="#00C8FF" BlurRadius="8" ShadowDepth="0" Opacity="0.3"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource Surface}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Glow ToggleButton (Play/Pause/Reset) ───────────────────── -->
+    <Style x:Key="GlowToggleButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderBrush"      Value="{StaticResource CyanAccent}"/>
+        <Setter Property="BorderThickness"  Value="1"/>
+        <Setter Property="Padding"          Value="16,6"/>
+        <Setter Property="FontSize"         Value="13"/>
+        <Setter Property="FontWeight"       Value="SemiBold"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#00C8FF" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="#00C8FF" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="border" Property="Background"
+                                    Value="#1500C8FF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background"
+                                    Value="#2500C8FF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Slider (Time Flow) ──────────────────────────────────────── -->
+    <Style x:Key="CyanSliderStyle" TargetType="Slider">
+        <Setter Property="Foreground"  Value="{StaticResource CyanAccent}"/>
+        <Setter Property="Minimum"     Value="0.1"/>
+        <Setter Property="Maximum"     Value="10"/>
+        <Setter Property="Value"       Value="1"/>
+        <Setter Property="Width"       Value="200"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- ── Modal Button Styles ─────────────────────────────────────── -->
+    <Style x:Key="ModalPrimaryButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="{StaticResource CyanAccent}"/>
+        <Setter Property="Foreground"       Value="#FF0B0F14"/>
+        <Setter Property="FontWeight"       Value="SemiBold"/>
+        <Setter Property="FontSize"         Value="14"/>
+        <Setter Property="Padding"          Value="20,10"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Opacity" Value="0.85"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ModalSecondaryButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="{StaticResource Surface}"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontSize"         Value="14"/>
+        <Setter Property="Padding"          Value="20,10"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ModalExitButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextSecondary}"/>
+        <Setter Property="FontSize"         Value="13"/>
+        <Setter Property="Padding"          Value="20,8"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource Surface}"/>
+                            <Setter Property="Foreground" Value="{StaticResource StatusRed}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Status Bar Compact ──────────────────────────────────────── -->
+    <Style x:Key="CompactStatusBarStyle" TargetType="StatusBar">
+        <Setter Property="Background" Value="{StaticResource MenuBarBackground}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        <Setter Property="FontSize"   Value="11"/>
+        <Setter Property="Height"     Value="24"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Phase 3+ — Multi-Stage Navigation Modal Styles
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- ── Modal Navigation Button (full-width menu items) ────────── -->
+    <Style x:Key="ModalNavButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="{StaticResource Surface}"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontSize"         Value="14"/>
+        <Setter Property="Padding"          Value="15,12"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="Transparent"
+                            BorderThickness="3,0,0,0"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                            <Setter TargetName="bg" Property="BorderBrush"
+                                    Value="{StaticResource CyanAccent}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource BackgroundTertiary}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Modal Navigation Button Accent (primary action) ────────── -->
+    <Style x:Key="ModalNavButtonAccentStyle" TargetType="Button">
+        <Setter Property="Background"      Value="{StaticResource CyanAccent}"/>
+        <Setter Property="Foreground"       Value="#FF0A0E17"/>
+        <Setter Property="FontSize"         Value="14"/>
+        <Setter Property="FontWeight"       Value="SemiBold"/>
+        <Setter Property="Padding"          Value="15,12"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="8"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Opacity" Value="0.85"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Opacity" Value="0.7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Modal Back Button (transparent, subtle) ────────────────── -->
+    <Style x:Key="ModalBackButtonStyle" TargetType="Button">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextSecondary}"/>
+        <Setter Property="FontSize"         Value="12"/>
+        <Setter Property="Padding"          Value="10,6"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="BorderThickness"  Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="#10FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Form Label Style ───────────────────────────────────────── -->
+    <Style x:Key="FormLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+
+    <!-- ── Form TextBox Style ─────────────────────────────────────── -->
+    <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource BackgroundTertiary}"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderPrimary}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="CaretBrush" Value="{StaticResource CyanAccent}"/>
+        <Setter Property="SelectionBrush" Value="{StaticResource AccentPurple}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="border" Property="BorderBrush"
+                                    Value="{StaticResource CyanAccent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Shortcut Hint Text ─────────────────────────────────────── -->
+    <Style x:Key="ShortcutHintStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource TextDisabled}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalAlignment" Value="Right"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         Phase 4 — Inspector & Palette Styles
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- ── Inspector Label (compact property label) ──────────────── -->
+    <Style x:Key="InspectorLabelStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,8,0"/>
+    </Style>
+
+    <!-- ── Inspector TextBox (compact numeric input) ─────────────── -->
+    <Style x:Key="InspectorTextBoxStyle" TargetType="TextBox"
+           BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="FontFamily" Value="Consolas"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="MinWidth" Value="60"/>
+    </Style>
+
+    <!-- ── Inspector CheckBox ────────────────────────────────────── -->
+    <Style x:Key="InspectorCheckBoxStyle" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Margin" Value="0,2"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <!-- ── Body Type Palette Button ──────────────────────────────── -->
+    <Style x:Key="BodyTypePaletteButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource ModeButtonStyle}">
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="MinWidth" Value="64"/>
+        <Setter Property="Margin" Value="2,0"/>
+    </Style>
+
+    <!-- ── Settings Overlay Background ───────────────────────────── -->
+    <SolidColorBrush x:Key="SettingsOverlay" Color="#CC000000"/>
+
+</ResourceDictionary>

@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Celestial Mechanics Desktop — UI &amp; Frontend Analysis Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-primary: #0A0E17;
+    --bg-secondary: #121829;
+    --bg-tertiary: #1A2236;
+    --surface: #1E2740;
+    --border: #2A3454;
+    --cyan: #4FC3F7;
+    --purple: #7C4DFF;
+    --warm: #FFB74D;
+    --text-primary: #E8EAF0;
+    --text-secondary: #8892B0;
+    --green: #66BB6A;
+    --red: #EF5350;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #ffffff;
+    color: #1a1a2e;
+    line-height: 1.7;
+    font-size: 11pt;
+  }
+
+  .cover {
+    background: linear-gradient(135deg, #0A0E17 0%, #121829 40%, #1A2236 70%, #7C4DFF 100%);
+    color: white;
+    padding: 120px 60px;
+    page-break-after: always;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .cover h1 {
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #4FC3F7, #7C4DFF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .cover .subtitle { font-size: 22px; color: #8892B0; margin-bottom: 40px; }
+  .cover .meta { font-size: 14px; color: #8892B0; line-height: 2; }
+  .cover .meta span { color: #4FC3F7; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 40px 50px; }
+
+  h2 {
+    font-size: 24px; font-weight: 700; color: #0A0E17;
+    border-bottom: 3px solid #4FC3F7; padding-bottom: 8px;
+    margin: 50px 0 20px 0;
+    page-break-after: avoid;
+  }
+
+  h3 {
+    font-size: 18px; font-weight: 600; color: #1A2236;
+    margin: 30px 0 12px 0;
+    page-break-after: avoid;
+  }
+
+  h4 { font-size: 14px; font-weight: 600; color: #7C4DFF; margin: 20px 0 8px 0; }
+
+  p { margin-bottom: 12px; text-align: justify; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 15px 0 25px 0;
+    font-size: 10.5pt; page-break-inside: avoid;
+  }
+
+  th {
+    background: #121829; color: #4FC3F7; padding: 10px 12px;
+    text-align: left; font-weight: 600; font-size: 10pt;
+  }
+
+  td { padding: 8px 12px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f9ff; }
+
+  code {
+    font-family: 'JetBrains Mono', monospace; font-size: 9.5pt;
+    background: #f0f0f8; padding: 2px 6px; border-radius: 3px; color: #7C4DFF;
+  }
+
+  .info-box {
+    background: linear-gradient(135deg, #EBF5FF, #F0EAFF);
+    border-left: 4px solid #4FC3F7; padding: 16px 20px;
+    margin: 20px 0; border-radius: 0 8px 8px 0;
+  }
+
+  .warn-box {
+    background: #FFF8E1; border-left: 4px solid #FFB74D;
+    padding: 16px 20px; margin: 20px 0; border-radius: 0 8px 8px 0;
+  }
+
+  .color-swatch {
+    display: inline-block; width: 18px; height: 18px;
+    border-radius: 3px; vertical-align: middle; margin-right: 6px;
+    border: 1px solid #ccc;
+  }
+
+  .arch-diagram {
+    background: #0A0E17; color: #E8EAF0; padding: 20px;
+    border-radius: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10pt; line-height: 1.5; margin: 20px 0;
+    white-space: pre; overflow-x: auto;
+  }
+
+  ul, ol { margin: 10px 0 15px 24px; }
+  li { margin-bottom: 6px; }
+
+  .toc { page-break-after: always; }
+  .toc h2 { border-bottom-color: #7C4DFF; }
+  .toc ol { list-style: none; counter-reset: toc; padding-left: 0; }
+  .toc ol li { counter-increment: toc; padding: 6px 0; border-bottom: 1px dotted #ddd; }
+  .toc ol li::before { content: counter(toc) ". "; font-weight: 600; color: #7C4DFF; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0; }
+  .stat-card {
+    background: linear-gradient(135deg, #f8f9ff, #f0eaff);
+    border-radius: 10px; padding: 20px; text-align: center;
+  }
+  .stat-card .num { font-size: 28px; font-weight: 700; color: #7C4DFF; }
+  .stat-card .label { font-size: 11px; color: #8892B0; margin-top: 4px; }
+
+  .footer { text-align: center; color: #8892B0; font-size: 10pt; margin-top: 60px; padding: 20px; border-top: 1px solid #e0e0e0; }
+
+  @media print {
+    body { font-size: 10pt; }
+    .cover { min-height: auto; padding: 80px 40px; }
+    .content { padding: 20px 30px; }
+    h2 { page-break-after: avoid; }
+    table, .arch-diagram, .info-box { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ COVER PAGE ═══════════ -->
+<div class="cover">
+  <h1>UI &amp; Frontend Analysis Report</h1>
+  <div class="subtitle">CelestialMechanics.Desktop — Native WPF Simulation IDE</div>
+  <div class="meta">
+    <span>Project:</span> Celestial Mechanics Desktop Simulator<br>
+    <span>Framework:</span> WPF (.NET 8) + OpenGL (Silk.NET)<br>
+    <span>Architecture:</span> MVVM (CommunityToolkit.Mvvm)<br>
+    <span>Date:</span> April 6, 2026<br>
+    <span>Author:</span> Auto-Generated Analysis
+  </div>
+</div>
+
+<!-- ═══════════ TABLE OF CONTENTS ═══════════ -->
+<div class="content toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li>Executive Summary &amp; Key Metrics</li>
+    <li>Application Architecture Overview</li>
+    <li>UI Layer Structure &amp; File Inventory</li>
+    <li>Navigation &amp; Modal System</li>
+    <li>IDE Workspace Layout</li>
+    <li>Theming &amp; Design System</li>
+    <li>MVVM Implementation Analysis</li>
+    <li>3D Viewport &amp; Rendering Pipeline</li>
+    <li>Shader-Based Procedural Rendering</li>
+    <li>User Interaction Model</li>
+    <li>Panel Components Deep-Dive</li>
+    <li>Services Layer Analysis</li>
+    <li>ImGui Debug Overlay (App Project)</li>
+    <li>Strengths &amp; Achievements</li>
+    <li>Gaps &amp; Areas for Improvement</li>
+    <li>Recommendations &amp; Roadmap</li>
+  </ol>
+</div>
+
+<!-- ═══════════ 1. EXECUTIVE SUMMARY ═══════════ -->
+<div class="content">
+
+<h2>1. Executive Summary &amp; Key Metrics</h2>
+
+<p>The <strong>CelestialMechanics.Desktop</strong> project is a native Windows desktop application built with WPF and .NET 8, serving as the primary GUI front-end for an N-body gravitational simulation engine. The application features a cinematic dark theme, a multi-stage modal navigation system, a full 3-panel IDE workspace, and a hardware-accelerated OpenGL 3D viewport with procedural shader-based rendering of celestial bodies.</p>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="num">48</div><div class="label">Total UI/Frontend Files</div></div>
+  <div class="stat-card"><div class="num">11</div><div class="label">ViewModels</div></div>
+  <div class="stat-card"><div class="num">14</div><div class="label">GLSL Shaders</div></div>
+</div>
+<div class="stat-grid">
+  <div class="stat-card"><div class="num">5</div><div class="label">Modal Screens</div></div>
+  <div class="stat-card"><div class="num">4</div><div class="label">IDE Panels</div></div>
+  <div class="stat-card"><div class="num">10</div><div class="label">Body Types Rendered</div></div>
+</div>
+
+<div class="info-box">
+  <strong>Technology Stack:</strong> WPF (.NET 8) · Silk.NET OpenGL · CommunityToolkit.Mvvm 8.4 · Win32 Interop (WGL/HwndHost) · GLSL 330 Core · JSON Serialization
+</div>
+
+<!-- ═══════════ 2. ARCHITECTURE ═══════════ -->
+<h2>2. Application Architecture Overview</h2>
+
+<p>The frontend spans two primary projects within the solution, plus shader assets from the Renderer project:</p>
+
+<table>
+  <tr><th>Project</th><th>Role</th><th>Key Technologies</th></tr>
+  <tr><td><code>CelestialMechanics.Desktop</code></td><td>WPF application — Views, ViewModels, themes, services, infrastructure</td><td>WPF, MVVM, Win32 Interop</td></tr>
+  <tr><td><code>CelestialMechanics.Renderer</code></td><td>OpenGL rendering engine — camera, shaders, instanced rendering</td><td>Silk.NET OpenGL, GLSL 330</td></tr>
+  <tr><td><code>CelestialMechanics.App</code></td><td>Standalone app with ImGui debug overlay (developer tool)</td><td>ImGui.NET, Silk.NET</td></tr>
+</table>
+
+<div class="arch-diagram">┌─────────────────────────────────────────────────────────┐
+│                   CelestialMechanics.Desktop            │
+│  ┌──────────┐  ┌────────────┐  ┌───────────────────┐   │
+│  │  Views/   │  │ ViewModels/│  │  Infrastructure/  │   │
+│  │  Modals/  │←→│ (MVVM)     │  │  OpenGLHost       │   │
+│  │  Panels/  │  │            │  │  RenderLoop       │   │
+│  └──────────┘  └─────┬──────┘  │  Win32Interop     │   │
+│  ┌──────────┐        │         └─────────┬─────────┘   │
+│  │ Themes/  │        │                   │             │
+│  │ Styles/  │        ▼                   ▼             │
+│  └──────────┘  ┌────────────┐  ┌───────────────────┐   │
+│                │ Services/  │  │ CelestialMechanics│   │
+│                │ SimService │  │ .Renderer         │   │
+│                │ SceneServ  │  │ GLRenderer        │   │
+│                │ ProjectSrv │  │ Camera, Shaders   │   │
+│                └─────┬──────┘  └───────────────────┘   │
+│                      ▼                                  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  CelestialMechanics.Simulation (Engine)          │   │
+│  │  CelestialMechanics.Physics (N-Body Solver)      │   │
+│  │  CelestialMechanics.Math (Vec3d, Constants)      │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘</div>
+
+<!-- ═══════════ 3. FILE INVENTORY ═══════════ -->
+<h2>3. UI Layer Structure &amp; File Inventory</h2>
+
+<h3>3.1 Desktop Project File Map</h3>
+<table>
+  <tr><th>Directory</th><th>Files</th><th>Purpose</th></tr>
+  <tr><td><code>Views/</code></td><td>MainWindow.xaml/.cs, ViewportPanel.xaml/.cs</td><td>Primary window and OpenGL viewport host</td></tr>
+  <tr><td><code>Views/Modals/</code></td><td>5 modals × (XAML + .cs) = 10 files</td><td>ModeSelection, SimulationMenu, NewProject, ProjectsList, FileMenu</td></tr>
+  <tr><td><code>Views/Panels/</code></td><td>4 panels × (XAML + .cs) = 8 files</td><td>SceneOutliner, BodyInspector, SimulationSettings, BodyTypePalette</td></tr>
+  <tr><td><code>ViewModels/</code></td><td>11 C# files</td><td>MainWindowVM, BodyInspectorVM, SceneOutlinerVM, SimSettingsVM, etc.</td></tr>
+  <tr><td><code>Themes/</code></td><td>Colors.xaml, SpaceDarkTheme.xaml</td><td>Color tokens and base control templates</td></tr>
+  <tr><td><code>Styles/</code></td><td>Theme.xaml</td><td>Extended cinematic styles, modal styles, inspector styles</td></tr>
+  <tr><td><code>Converters/</code></td><td>BoolToVisibilityConverter.cs</td><td>XAML data binding converters</td></tr>
+  <tr><td><code>Services/</code></td><td>SimulationService, SceneService, ProjectService</td><td>Thread-safe engine wrappers</td></tr>
+  <tr><td><code>Infrastructure/</code></td><td>OpenGLHost, RenderLoop, Win32Interop</td><td>Native HWND, WGL context, render thread</td></tr>
+  <tr><td><code>Models/</code></td><td>ProjectInfo, SceneNodeItem, SimulationSaveState</td><td>Data transfer objects</td></tr>
+</table>
+
+<h3>3.2 Renderer Project (Frontend-Relevant)</h3>
+<table>
+  <tr><th>File</th><th>Lines</th><th>Purpose</th></tr>
+  <tr><td><code>GLRenderer.cs</code></td><td>217</td><td>Multi-pass rendering orchestrator (5 render passes)</td></tr>
+  <tr><td><code>Camera.cs</code></td><td>237</td><td>Orbit camera with smooth interpolation and fly-to animation</td></tr>
+  <tr><td><code>InstancedSphereRenderer.cs</code></td><td>~220</td><td>GPU-instanced sphere rendering for celestial bodies</td></tr>
+  <tr><td><code>TrailRenderer.cs</code></td><td>~190</td><td>Orbital trail GL_LINE_STRIP rendering with ring buffer</td></tr>
+  <tr><td><code>StarfieldRenderer.cs</code></td><td>~120</td><td>Background star particle system</td></tr>
+  <tr><td><code>GridRenderer.cs</code></td><td>~75</td><td>Reference grid on XZ plane</td></tr>
+  <tr><td><code>SelectionHelper.cs</code></td><td>~80</td><td>CPU-side ray-sphere intersection for body picking</td></tr>
+  <tr><td><code>Shaders/ (14 files)</code></td><td>~1,500 total</td><td>GLSL vertex/fragment shaders for all visual elements</td></tr>
+</table>
+
+<!-- ═══════════ 4. NAVIGATION ═══════════ -->
+<h2>4. Navigation &amp; Modal System</h2>
+
+<p>The application implements a <strong>multi-stage modal navigation flow</strong> before entering the main IDE. This is managed through a <code>NavigationState</code> enum and DataTriggers in XAML that control modal visibility.</p>
+
+<h3>4.1 Navigation Flow</h3>
+<div class="arch-diagram">  ┌──────────────┐      ┌──────────────────┐
+  │ Mode         │─────→│ Simulation       │
+  │ Selection    │      │ Menu             │
+  │ (Start)      │      │                  │
+  └──────────────┘      └──┬───┬───┬───────┘
+                           │   │   │
+                ┌──────────┘   │   └──────────┐
+                ▼              ▼              ▼
+          ┌──────────┐  ┌──────────┐  ┌──────────┐
+          │ New      │  │ File     │  │ Projects │
+          │ Project  │  │ Menu     │  │ List     │
+          └────┬─────┘  └──────────┘  └────┬─────┘
+               │                           │
+               └───────────┬───────────────┘
+                           ▼
+                   ┌───────────────┐
+                   │ Simulation    │
+                   │ IDE Workspace │
+                   │ (Full App)    │
+                   └───────────────┘</div>
+
+<h3>4.2 Navigation States</h3>
+<table>
+  <tr><th>State</th><th>Modal</th><th>Description</th></tr>
+  <tr><td><code>ModeSelection</code></td><td>ModeSelectionModal</td><td>Landing screen — choose Simulation or Observation (disabled)</td></tr>
+  <tr><td><code>SimulationMenu</code></td><td>SimulationMenuModal</td><td>New Project, File, Projects, Settings options</td></tr>
+  <tr><td><code>NewProject</code></td><td>NewProjectModal</td><td>Name and location form for creating a new simulation</td></tr>
+  <tr><td><code>ProjectsList</code></td><td>ProjectsListModal</td><td>Browse and open previously saved projects</td></tr>
+  <tr><td><code>FileMenu</code></td><td>FileMenuModal</td><td>File operations submenu</td></tr>
+  <tr><td><code>SimulationIDE</code></td><td><em>None (IDE active)</em></td><td>Full 3-panel workspace with viewport</td></tr>
+</table>
+
+<p>All modals share consistent visual design: 400×350px centered panels with <code>#161B22</code> background, 16px corner radius, drop shadow, and the same button style hierarchy (Primary → Secondary → Back).</p>
+
+<div class="info-box">
+  <strong>Background Video:</strong> The modal screens feature a <code>MediaElement</code> playing a looping background simulation video (<code>background_simulation.mp4</code>) with a 20px blur and 40% opacity, creating an immersive cinematic feel. If the video is unavailable, it falls back gracefully to the dark background.
+</div>
+
+<!-- ═══════════ 5. IDE LAYOUT ═══════════ -->
+<h2>5. IDE Workspace Layout</h2>
+
+<p>Once a project is opened, the UI transitions to the full Simulation IDE — a 4-row, 5-column grid layout:</p>
+
+<div class="arch-diagram">┌─────────────────── MainWindow Grid ───────────────────────┐
+│ Row 0: Menu Bar (File│Edit│View│Help) — IDE only          │
+├──────────┬─────┬──────────────┬─────┬─────────────────────┤
+│ Col 0    │Col 1│   Col 2      │Col 3│ Col 4               │
+│ Scene    │Split│  Body Type   │Split│ TabControl           │
+│ Outliner │ ter │  Palette     │ ter │ ┌─────────────────┐  │
+│ (220px)  │(4px)│  (Add mode)  │(4px)│ │Tab: Inspector   │  │
+│          │     │──────────────│     │ │Tab: Settings    │  │
+│ ListBox  │     │  OpenGL      │     │ │                 │  │
+│ with     │     │  Viewport    │     │ │ GroupBoxes:     │  │
+│ icons    │     │  (HwndHost)  │     │ │ Identity        │  │
+│          │     │              │     │ │ Transform       │  │
+│          │     │              │     │ │ Physical        │  │
+│          │     │              │     │ │ Simulation      │  │
+├──────────┴─────┴──────────────┴─────┴─────────────────────┤
+│ Row 2: Control Bar (floating, 70px, rounded top corners)  │
+│  [Add][Simulate][Edit][Analysis][Settings] | TimeFlow | ▶ ║│ ⏸ │ ↺│
+├───────────────────────────────────────────────────────────┤
+│ Row 3: Status Bar — FPS │ Bodies │ Physics ms │ State     │
+└───────────────────────────────────────────────────────────┘</div>
+
+<h3>5.1 Panel Dimensions &amp; Behavior</h3>
+<table>
+  <tr><th>Panel</th><th>Default Width</th><th>Min</th><th>Max</th><th>Toggleable</th></tr>
+  <tr><td>Scene Outliner (left)</td><td>220px</td><td>150px</td><td>400px</td><td>Yes (View menu)</td></tr>
+  <tr><td>Viewport (center)</td><td>Star (*)</td><td>400px</td><td>∞</td><td>Always visible</td></tr>
+  <tr><td>Inspector/Settings (right)</td><td>260px</td><td>200px</td><td>500px</td><td>Yes (View menu)</td></tr>
+</table>
+
+<p>Panels are separated by interactive <code>GridSplitter</code> controls (4px wide) that highlight cyan on hover. All panels can be toggled via the View menu (<code>ShowSceneOutliner</code>, <code>ShowInspector</code>).</p>
+
+<!-- ═══════════ 6. THEMING ═══════════ -->
+<h2>6. Theming &amp; Design System</h2>
+
+<h3>6.1 Color Palette</h3>
+<p>The design system is built on a carefully curated "Space Dark" palette defined in <code>Colors.xaml</code> (19 colors) and extended in <code>Theme.xaml</code> (6 additional cinematic colors):</p>
+
+<table>
+  <tr><th>Category</th><th>Token</th><th>Hex</th><th>Usage</th></tr>
+  <tr><td>Background</td><td><code>BackgroundPrimary</code></td><td><span class="color-swatch" style="background:#0A0E17"></span>#0A0E17</td><td>Window background, deepest layer</td></tr>
+  <tr><td>Background</td><td><code>BackgroundSecondary</code></td><td><span class="color-swatch" style="background:#121829"></span>#121829</td><td>Side panels, status bar</td></tr>
+  <tr><td>Background</td><td><code>BackgroundTertiary</code></td><td><span class="color-swatch" style="background:#1A2236"></span>#1A2236</td><td>Group box headers, text inputs</td></tr>
+  <tr><td>Surface</td><td><code>Surface</code></td><td><span class="color-swatch" style="background:#1E2740"></span>#1E2740</td><td>Buttons, cards, selected items</td></tr>
+  <tr><td>Surface</td><td><code>SurfaceHover</code></td><td><span class="color-swatch" style="background:#243050"></span>#243050</td><td>Hover states on all interactive elements</td></tr>
+  <tr><td>Accent</td><td><code>AccentCyan</code></td><td><span class="color-swatch" style="background:#4FC3F7"></span>#4FC3F7</td><td>Primary accent — selected tabs, active states, borders</td></tr>
+  <tr><td>Accent</td><td><code>AccentPurple</code></td><td><span class="color-swatch" style="background:#7C4DFF"></span>#7C4DFF</td><td>Secondary accent — text selection highlight</td></tr>
+  <tr><td>Accent</td><td><code>GlowCyan</code></td><td><span class="color-swatch" style="background:#00E5FF"></span>#00E5FF</td><td>Pressed state glow effect</td></tr>
+  <tr><td>Text</td><td><code>TextPrimary</code></td><td><span class="color-swatch" style="background:#E8EAF0"></span>#E8EAF0</td><td>Primary content text</td></tr>
+  <tr><td>Text</td><td><code>TextSecondary</code></td><td><span class="color-swatch" style="background:#8892B0"></span>#8892B0</td><td>Labels, panel headers, secondary info</td></tr>
+  <tr><td>Status</td><td><code>StatusGreen/Yellow/Red</code></td><td><span class="color-swatch" style="background:#66BB6A"></span><span class="color-swatch" style="background:#FFA726"></span><span class="color-swatch" style="background:#EF5350"></span></td><td>Simulation state indicators</td></tr>
+</table>
+
+<h3>6.2 Styled Control Templates (27 styles)</h3>
+<p>The theme system provides complete custom <code>ControlTemplate</code> overrides for all WPF controls. Key styles include:</p>
+
+<table>
+  <tr><th>Style Key</th><th>Target Control</th><th>Features</th></tr>
+  <tr><td><code>ModeButtonStyle</code></td><td>Button</td><td>8px corner radius, cyan DropShadow glow on hover, active state via DataTrigger</td></tr>
+  <tr><td><code>GlowToggleButtonStyle</code></td><td>Button</td><td>Cyan border, 12px blur glow on hover, semi-transparent cyan fill on press</td></tr>
+  <tr><td><code>ModalNavButtonStyle</code></td><td>Button</td><td>Left-border accent indicator, 8px radius, full-width menu items</td></tr>
+  <tr><td><code>ModalPrimaryButtonStyle</code></td><td>Button</td><td>Solid cyan background, dark text, opacity reduction on hover</td></tr>
+  <tr><td><code>SpaceTabControlStyle</code></td><td>TabControl</td><td>Borderless tabs with 2px bottom accent on selected tab</td></tr>
+  <tr><td><code>SpaceTreeViewItemStyle</code></td><td>TreeViewItem</td><td>Custom expander arrows (cyan when open), left-border selection indicator</td></tr>
+  <tr><td><code>InspectorGroupBoxStyle</code></td><td>GroupBox</td><td>Surface header bar, tertiary content background</td></tr>
+  <tr><td><code>SpaceSliderStyle</code></td><td>Slider</td><td>3px track, 14px ellipse thumb, cyan filled portion</td></tr>
+  <tr><td><code>FormTextBoxStyle</code></td><td>TextBox</td><td>6px corner radius, cyan border on focus, purple selection</td></tr>
+  <tr><td><code>CompactStatusBarStyle</code></td><td>StatusBar</td><td>24px height, 11pt font, menu-bar-background color</td></tr>
+</table>
+
+<h3>6.3 Typography</h3>
+<ul>
+  <li><strong>Primary font:</strong> Segoe UI — used for all UI text (13pt default)</li>
+  <li><strong>Monospace font:</strong> Consolas — used for numeric displays, body IDs, time values</li>
+  <li><strong>Font sizes:</strong> 10pt (panel headers, labels), 11pt (inspector fields, status), 12pt (mode buttons), 13pt (general text), 14pt (modal buttons), 18pt (modal headers), 22pt (cover title)</li>
+</ul>
+
+<!-- ═══════════ 7. MVVM ═══════════ -->
+<h2>7. MVVM Implementation Analysis</h2>
+
+<h3>7.1 ViewModel Architecture</h3>
+<p>The application uses <strong>CommunityToolkit.Mvvm 8.4</strong> with source generators for all ViewModels. The <code>MainWindowViewModel</code> serves as the composition root, owning all services and child ViewModels.</p>
+
+<table>
+  <tr><th>ViewModel</th><th>Lines</th><th>Responsibilities</th></tr>
+  <tr><td><code>MainWindowViewModel</code></td><td>707</td><td>Navigation state machine, mode switching, service orchestration, simulation commands, UI timer (20Hz), body placement, save/load, 30+ observable properties</td></tr>
+  <tr><td><code>SceneOutlinerViewModel</code></td><td>~130</td><td>ObservableCollection of SceneNodeItems, selection syncing, delete commands</td></tr>
+  <tr><td><code>BodyInspectorViewModel</code></td><td>~130</td><td>Two-way bound body properties (position, velocity, mass, radius), apply changes command</td></tr>
+  <tr><td><code>SimulationSettingsViewModel</code></td><td>~160</td><td>All PhysicsConfig properties (integrator, Barnes-Hut, collisions, relativistic), apply/close commands</td></tr>
+  <tr><td><code>ModeSelectionViewModel</code></td><td>~25</td><td>SelectSimulation and Exit event delegates</td></tr>
+  <tr><td><code>SimulationMenuViewModel</code></td><td>~30</td><td>NewProject, File, Projects, Back navigation events</td></tr>
+  <tr><td><code>NewProjectViewModel</code></td><td>~75</td><td>Project name/location form, browse dialog, project creation</td></tr>
+  <tr><td><code>ProjectsListViewModel</code></td><td>~50</td><td>ObservableCollection of projects, refresh, open selection</td></tr>
+  <tr><td><code>FileMenuViewModel</code></td><td>~30</td><td>Back navigation only (stub for future file operations)</td></tr>
+  <tr><td><code>ModeState</code></td><td>~25</td><td>UiMode enum: Idle, AddPlacement, Edit, Simulate, Analyse</td></tr>
+  <tr><td><code>NavigationState</code></td><td>~20</td><td>Enum for modal navigation flow (6 states)</td></tr>
+</table>
+
+<h3>7.2 Data Binding Patterns</h3>
+<ul>
+  <li><strong>[ObservableProperty]</strong> — Source-generated properties with automatic <code>PropertyChanged</code> notifications (used extensively — 30+ properties in MainWindowViewModel alone)</li>
+  <li><strong>[RelayCommand]</strong> — Source-generated ICommand implementations for toolbar, menu, and modal actions</li>
+  <li><strong>[NotifyPropertyChangedFor]</strong> — Cascading property change notifications (e.g., NavState change notifies IsModalVisible, IsIdeActive, IsStatusBarVisible, IsControlBarVisible)</li>
+  <li><strong>DataTrigger binding</strong> — Modal visibility controlled via DataTriggers bound to <code>NavState</code> enum values</li>
+  <li><strong>Event-based wiring</strong> — Child ViewModels communicate via C# events (e.g., <code>ProjectCreated</code>, <code>BodySelected</code>, <code>DeleteRequested</code>)</li>
+</ul>
+
+<!-- ═══════════ 8. VIEWPORT ═══════════ -->
+<h2>8. 3D Viewport &amp; Rendering Pipeline</h2>
+
+<h3>8.1 OpenGL Integration Architecture</h3>
+<p>The 3D viewport is implemented through a sophisticated multi-layer architecture:</p>
+
+<ol>
+  <li><strong>OpenGLHost (HwndHost)</strong> — Creates a native child HWND window with <code>CS_OWNDC</code> class style, sets up a WGL OpenGL context, and provides a <code>Silk.NET.OpenGL.GL</code> API object. DPI-aware pixel calculation via <code>VisualTreeHelper.GetDpi()</code>.</li>
+  <li><strong>RenderLoop</strong> — Runs on a dedicated render thread at 60 FPS, owns the WGL context via <code>wglMakeCurrent</code>, handles frame pacing and FPS tracking.</li>
+  <li><strong>GLRenderer</strong> — Orchestrates the 5-pass rendering pipeline, managing all sub-renderers and shader programs.</li>
+  <li><strong>ViewportPanel</strong> — WPF UserControl wrapping the OpenGL host, handling all mouse/keyboard input delegation to the camera and ViewModel.</li>
+</ol>
+
+<h3>8.2 Rendering Passes (Per Frame)</h3>
+<table>
+  <tr><th>Pass</th><th>Renderer</th><th>Shader</th><th>Description</th></tr>
+  <tr><td>1</td><td>StarfieldRenderer</td><td>starfield.vert/frag</td><td>Background star particles (depth test disabled)</td></tr>
+  <tr><td>2</td><td>GridRenderer</td><td>grid.vert/frag</td><td>XZ-plane reference grid (alpha blended)</td></tr>
+  <tr><td>3</td><td>TrailRenderer</td><td>trail.vert/frag</td><td>Orbital trajectory trails (GL_LINE_STRIP)</td></tr>
+  <tr><td>4</td><td>InstancedSphereRenderer</td><td>sphere.vert/frag</td><td>Celestial bodies with procedural texturing (~460-line fragment shader)</td></tr>
+  <tr><td>5</td><td>LineRenderer</td><td>line.vert/frag</td><td>Velocity arrow vectors (optional)</td></tr>
+</table>
+
+<h3>8.3 Camera System</h3>
+<p>The <code>Camera</code> class implements an orbit camera with smooth interpolation:</p>
+<ul>
+  <li><strong>Orbit:</strong> Yaw/Pitch rotation around an adjustable target point</li>
+  <li><strong>Pan:</strong> Shift+drag moves the target in the camera's right/up plane</li>
+  <li><strong>Zoom:</strong> Scroll wheel adjusts orbital distance (0.1–10,000 range)</li>
+  <li><strong>FOV Zoom:</strong> Shift+Scroll adjusts field of view (10°–120°)</li>
+  <li><strong>WASD+QE:</strong> Keyboard navigation at 60Hz polling rate</li>
+  <li><strong>Fly-to:</strong> Smooth cubic ease-in-out animation (0.8s duration) to focus on a body</li>
+  <li><strong>Damping:</strong> All parameters use exponential smoothing (factor 8.0) for butter-smooth motion</li>
+</ul>
+
+<!-- ═══════════ 9. SHADERS ═══════════ -->
+<h2>9. Shader-Based Procedural Rendering</h2>
+
+<p>The <code>sphere.frag</code> shader (459 lines) is the visual centerpiece of the application. It implements procedural texturing for 10 distinct body types using Simplex noise (fBm), avoiding any texture files entirely.</p>
+
+<table>
+  <tr><th>Body Type</th><th>Visual Effect</th><th>Technique</th></tr>
+  <tr><td>Star</td><td>Animated plasma, sunspots, convection cells, limb darkening</td><td>5-octave fBm + time animation</td></tr>
+  <tr><td>Planet</td><td>Earth-like continents, oceans, polar ice caps</td><td>6-octave fBm with altitude-based coloring</td></tr>
+  <tr><td>Gas Giant</td><td>Jupiter-like bands, Great Red Spot, swirling storms</td><td>Latitude bands + turbulence noise + spot mask</td></tr>
+  <tr><td>Rocky Planet</td><td>Mars-like terrain, canyons, crater rims, polar frost</td><td>5-octave fBm + crater noise</td></tr>
+  <tr><td>Moon</td><td>Craters (large + small), maria, gray highlands</td><td>Multi-scale noise for different crater sizes</td></tr>
+  <tr><td>Asteroid</td><td>Rough irregular rock, regolith patches</td><td>4-octave fBm + high-frequency roughness</td></tr>
+  <tr><td>Neutron Star</td><td>Blue-white pulsing, magnetic pole beams, surface crackle</td><td>Sinusoidal pulse + high-freq animated noise</td></tr>
+  <tr><td>Black Hole</td><td>Dark center, Fresnel rim glow, photon ring, accretion swirl</td><td>Fresnel³ + ring masking + animated noise</td></tr>
+  <tr><td>Comet</td><td>Icy/dusty surface, outgassing bright spots</td><td>fBm + spot threshold noise</td></tr>
+  <tr><td>Custom</td><td>Solid instance color</td><td>Pass-through from vertex attribute</td></tr>
+</table>
+
+<p><strong>Lighting model:</strong> Blinn-Phong (ambient + diffuse + specular) with per-body-type shininess, Fresnel rim light, atmospheric glow for planets, and animated cyan selection highlight (pulsing at 4Hz).</p>
+
+<!-- ═══════════ 10. INTERACTION ═══════════ -->
+<h2>10. User Interaction Model</h2>
+
+<h3>10.1 UI Modes (State Machine)</h3>
+<table>
+  <tr><th>Mode</th><th>Left Click</th><th>Right Click</th><th>Cursor</th><th>Palette</th></tr>
+  <tr><td><code>Idle</code></td><td>Select body (raycast)</td><td>Deselect</td><td>Arrow</td><td>Hidden</td></tr>
+  <tr><td><code>AddPlacement</code></td><td>Place body at XZ plane intersection</td><td>Cancel placement</td><td>Cross</td><td>Visible (10 body types)</td></tr>
+  <tr><td><code>Edit</code></td><td>Select body (raycast)</td><td>Deselect</td><td>Hand</td><td>Hidden</td></tr>
+  <tr><td><code>Simulate</code></td><td>Orbit camera (drag)</td><td>Deselect</td><td>Arrow</td><td>Hidden</td></tr>
+  <tr><td><code>Analyse</code></td><td>Select body (raycast)</td><td>Deselect</td><td>Arrow</td><td>Hidden</td></tr>
+</table>
+
+<h3>10.2 Keyboard Shortcuts</h3>
+<table>
+  <tr><th>Key</th><th>Action</th><th>Scope</th></tr>
+  <tr><td><code>Ctrl+S</code></td><td>Save project</td><td>Global (InputBinding)</td></tr>
+  <tr><td><code>Ctrl+O</code></td><td>Open project</td><td>Global (InputBinding)</td></tr>
+  <tr><td><code>Delete</code></td><td>Delete selected body</td><td>Global (InputBinding)</td></tr>
+  <tr><td><code>W/A/S/D</code></td><td>Camera navigation (forward/left/back/right)</td><td>Viewport focused</td></tr>
+  <tr><td><code>Q/E</code></td><td>Camera up/down</td><td>Viewport focused</td></tr>
+  <tr><td><code>Home</code></td><td>Reset camera to default</td><td>Viewport focused</td></tr>
+  <tr><td><code>F</code></td><td>Focus camera on selected body</td><td>Viewport focused</td></tr>
+  <tr><td><code>Double-click</code></td><td>Fly camera to clicked body</td><td>Viewport</td></tr>
+</table>
+
+<!-- ═══════════ 11. PANELS ═══════════ -->
+<h2>11. Panel Components Deep-Dive</h2>
+
+<h3>11.1 Scene Outliner Panel</h3>
+<p>Flat <code>ListBox</code> displaying all simulation bodies with icon glyphs, name, and type label. Features cyan left-border selection indicator, hover highlighting, and right-click context menu with Delete option. Selection syncs bidirectionally with the BodyInspectorViewModel and viewport selection highlight.</p>
+
+<h3>11.2 Body Inspector Panel</h3>
+<p>Scrollable panel with 4 GroupBox sections:</p>
+<ul>
+  <li><strong>Identity</strong> — Editable Name (TextBox), Type (ComboBox), read-only ID</li>
+  <li><strong>Transform</strong> — Position X/Y/Z and Velocity X/Y/Z (6 editable TextBoxes, F6 format, UpdateSourceTrigger=LostFocus)</li>
+  <li><strong>Physical</strong> — Mass, Radius (editable, G6 format), Density (read-only)</li>
+  <li><strong>Simulation</strong> — Active and Collidable checkboxes</li>
+</ul>
+<p>Shows "Select a body to inspect" placeholder when nothing is selected. Includes an "Apply Changes" button that writes values back to the physics engine.</p>
+
+<h3>11.3 Simulation Settings Panel</h3>
+<p>7 GroupBox sections exposing the entire <code>PhysicsConfig</code> surface:</p>
+<ul>
+  <li><strong>Integrator</strong> — ComboBox (Euler/Verlet/RK4)</li>
+  <li><strong>Performance</strong> — Deterministic, Parallel, SIMD, SoA checkboxes</li>
+  <li><strong>Algorithm</strong> — Barnes-Hut toggle + Theta slider (0.0–1.0, conditionally enabled)</li>
+  <li><strong>Physics</strong> — Collisions, Adaptive Timestep toggles</li>
+  <li><strong>Timestep</strong> — dt, Min dt, Max dt numeric inputs</li>
+  <li><strong>Relativistic</strong> — Post-Newtonian, Lensing, Accretion Disks, Gravitational Waves, Jets</li>
+  <li><strong>Softening</strong> — Epsilon value + Mode dropdown (Constant/Plummer)</li>
+</ul>
+
+<h3>11.4 Body Type Palette</h3>
+<p>Horizontal strip (44px height) visible only in Add mode, containing 10 body type buttons with Unicode glyph icons: ★ Star, ● Planet, ◉ Gas Giant, ▪ Rocky, ◦ Moon, ◇ Asteroid, ✦ Neutron, ◯ Black Hole, ☄ Comet, ◈ Custom.</p>
+
+<!-- ═══════════ 12. SERVICES ═══════════ -->
+<h2>12. Services Layer Analysis</h2>
+
+<table>
+  <tr><th>Service</th><th>Lines</th><th>Thread Safety</th><th>Key Features</th></tr>
+  <tr><td><code>SimulationService</code></td><td>~140</td><td>Dedicated sim thread (~1kHz), <code>Interlocked</code> for metrics, <code>WithEngineLock</code> callback</td><td>Play/Pause/Step/Reset, body CRUD, integrator switching, time scale</td></tr>
+  <tr><td><code>SceneService</code></td><td>~90</td><td>UI thread only</td><td>Maintains SceneGraph ↔ SimulationEngine body mapping, selection management</td></tr>
+  <tr><td><code>ProjectService</code></td><td>~90</td><td>UI thread only</td><td>Project directory creation, project discovery, metadata persistence</td></tr>
+</table>
+
+<!-- ═══════════ 13. IMGUI ═══════════ -->
+<h2>13. ImGui Debug Overlay (App Project)</h2>
+
+<p>The <code>CelestialMechanics.App</code> project provides a separate standalone application with an ImGui-based overlay used for development and debugging. It includes 6 dockable panels:</p>
+<ul>
+  <li><strong>Simulation Controls</strong> — Play/Pause/Step/Reset with color-coded state indicator</li>
+  <li><strong>Energy Monitor</strong> — Kinetic, Potential, Total energy with scrolling graph (200-point history), drift percentage with green/yellow/red color coding</li>
+  <li><strong>Performance</strong> — FPS graph (120-point history), physics/render timing, frame budget progress bar</li>
+  <li><strong>Integrator Selector</strong> — Combo dropdown with description text for each method</li>
+  <li><strong>Add Body</strong> — Template selector with auto-populated mass/radius, position/velocity inputs</li>
+  <li><strong>Body Inspector</strong> — ListBox selector, position/velocity/acceleration readout with X/Y/Z color coding</li>
+</ul>
+
+<div class="info-box">
+  <strong>Note:</strong> The ImGui overlay is a separate application from the WPF Desktop app. The Desktop project has replicated most of this functionality in its native WPF panels, though the Energy Monitor graph and FPS graph are not yet replicated in the WPF version.
+</div>
+
+<!-- ═══════════ 14. STRENGTHS ═══════════ -->
+<h2>14. Strengths &amp; Achievements</h2>
+
+<ol>
+  <li><strong>Professional-grade theming:</strong> 27 custom control templates with consistent color tokens, hover/press/disabled/selected states across all controls. The design language is cohesive and visually impressive.</li>
+  <li><strong>Sophisticated procedural rendering:</strong> 460-line fragment shader with Simplex noise fBm generates unique, animated visuals for 10 body types — no textures needed. Star convection, gas giant bands, and black hole rim glow are exceptionally well-implemented.</li>
+  <li><strong>Proper threading architecture:</strong> Three independent threads (UI at 20Hz, Render at 60Hz, Physics at ~1kHz) with thread-safe communication via locks and <code>Interlocked</code> atomic operations.</li>
+  <li><strong>Smooth camera system:</strong> Exponential damping on all 5 camera parameters (yaw, pitch, distance, target, FOV) with fly-to animation using cubic ease-in-out interpolation.</li>
+  <li><strong>Complete MVVM implementation:</strong> 11 ViewModels with source-generated properties/commands, event-driven inter-VM communication, and minimal code-behind (only View-specific concerns like OpenGL init and video playback).</li>
+  <li><strong>Full simulation settings exposure:</strong> All 20+ PhysicsConfig parameters accessible through the Settings panel, including advanced features like Barnes-Hut theta, relativistic effects, and adaptive timestep.</li>
+  <li><strong>Cinematic modal navigation:</strong> Multi-stage entry flow with background video, blur effects, and consistent modal styling creates a polished first impression.</li>
+  <li><strong>Body placement system:</strong> Complete Add mode workflow with palette selection, cursor change, XZ plane raycasting for placement, and right-click cancellation.</li>
+</ol>
+
+<!-- ═══════════ 15. GAPS ═══════════ -->
+<h2>15. Gaps &amp; Areas for Improvement</h2>
+
+<div class="warn-box">
+  <strong>Missing Features (from README.md roadmap):</strong>
+</div>
+
+<table>
+  <tr><th>Feature</th><th>Status</th><th>Difficulty</th></tr>
+  <tr><td>Snapshot Timeline / Time Scrubber</td><td>Not started</td><td>Medium — SnapshotManager API exists</td></tr>
+  <tr><td>Event Log Panel</td><td>Not started</td><td>Low — EventBus API exists</td></tr>
+  <tr><td>Real-time Energy Chart</td><td>Exists in ImGui, not in WPF</td><td>Medium — needs canvas or charting lib</td></tr>
+  <tr><td>Undo/Redo System</td><td>Not started</td><td>Medium — can leverage snapshots</td></tr>
+  <tr><td>GPU Engine Mode Selector</td><td>Not started</td><td>Low — dropdown wiring</td></tr>
+  <tr><td>Dependency Injection Container</td><td>Not implemented</td><td>Low — services are manually constructed</td></tr>
+  <tr><td>Scene Tree Hierarchy (TreeView)</td><td>Flat ListBox instead</td><td>Medium — SceneGraph API supports hierarchy</td></tr>
+  <tr><td>Body Creation Dialog (detailed)</td><td>Inline palette only</td><td>Medium — custom mass/velocity inputs needed</td></tr>
+  <tr><td>Additional Converters</td><td>Only BoolToVisibility exists</td><td>Low — Vec3dToString, BodyTypeToIcon, etc.</td></tr>
+  <tr><td>Accretion Disk / Lensing Renderers</td><td>Renderer classes exist but not integrated into pipeline</td><td>Medium — separate render passes needed</td></tr>
+</table>
+
+<h3>15.1 Technical Observations</h3>
+<ul>
+  <li><strong>MainWindowViewModel is overly large</strong> (707 lines) — handles navigation, modes, placement, simulation control, save/load, and metric updates. Should be decomposed into focused ViewModels.</li>
+  <li><strong>No input validation</strong> on inspector TextBoxes — users can enter invalid values for mass, radius, etc. without warning.</li>
+  <li><strong>Body Type Palette commands</strong> use a workaround with <code>Tag</code> property and <code>Int32.MinValue</code> CommandParameter — needs proper enum-based command parameter binding.</li>
+  <li><strong>No error handling UX</strong> — file load errors are silently caught, save failures are invisible to users.</li>
+  <li><strong>Accessibility</strong> — no ARIA-equivalent automation properties, no focus indicators on custom-templated controls, no high-contrast theme.</li>
+  <li><strong>No animations</strong> between navigation states — modals appear/disappear instantly without transitions.</li>
+</ul>
+
+<!-- ═══════════ 16. RECOMMENDATIONS ═══════════ -->
+<h2>16. Recommendations &amp; Roadmap</h2>
+
+<h3>Phase 1 — Quick Wins (1-2 weeks)</h3>
+<ul>
+  <li>Add modal transition animations (fade/slide using WPF Storyboards)</li>
+  <li>Implement input validation on inspector fields with visual error indicators</li>
+  <li>Add missing converters: <code>Vec3dToStringConverter</code>, <code>EngineStateToColorConverter</code>, <code>BodyTypeToIconConverter</code></li>
+  <li>Replace Scene Outliner flat ListBox with hierarchical TreeView using existing styles</li>
+  <li>Add error notification system (snackbar/toast style) for save/load failures</li>
+</ul>
+
+<h3>Phase 2 — Feature Completion (2-4 weeks)</h3>
+<ul>
+  <li>Implement Snapshot Timeline Panel with horizontal slider at viewport bottom</li>
+  <li>Port the ImGui Energy Monitor graph to a WPF canvas-based rolling chart</li>
+  <li>Add Event Log panel with ListView, color-coded by event type</li>
+  <li>Create detailed Add Body dialog with custom mass/position/velocity inputs</li>
+  <li>Integrate AccretionDiskRenderer and RelativisticRenderer into the render pipeline</li>
+</ul>
+
+<h3>Phase 3 — Architecture Improvements (2-4 weeks)</h3>
+<ul>
+  <li>Decompose MainWindowViewModel into NavigationViewModel, SimulationControlViewModel, PlacementViewModel</li>
+  <li>Add DI container (Microsoft.Extensions.DependencyInjection) for service registration</li>
+  <li>Implement undo/redo using the SnapshotManager</li>
+  <li>Add UI virtualization for Scene Outliner when body count exceeds 10,000</li>
+  <li>Add automated UI tests using WPF automation framework</li>
+</ul>
+
+<h3>Phase 4 — Polish (Ongoing)</h3>
+<ul>
+  <li>Add keyboard shortcut overlay (Space = play/pause, R = reset, etc.)</li>
+  <li>Implement draggable/dockable panel system</li>
+  <li>Add theme switching (light mode optional)</li>
+  <li>Accessibility improvements (automation properties, keyboard focus management)</li>
+  <li>Performance profiling and optimization for large body counts</li>
+</ul>
+
+<div class="footer">
+  <p><strong>Celestial Mechanics Desktop — UI &amp; Frontend Analysis Report</strong></p>
+  <p>Generated April 6, 2026 · 48 files analyzed across 3 projects</p>
+</div>
+
+</div>
+</body>
+</html>

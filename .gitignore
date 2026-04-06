@@ -30,7 +30,13 @@ Thumbs.db
 .gemini/
 *.log
 test_out.txt
+test_results*.txt
+determ_detailed.txt
 tmpclaude-*
+cygdrive*
+
+# Windows artifacts
+nul
 
 # Artifacts (if they happen to be in proj dir)
 brain/
