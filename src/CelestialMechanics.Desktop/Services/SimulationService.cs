@@ -1,3 +1,4 @@
+using CelestialMechanics.Math;
 using CelestialMechanics.Physics.Types;
 using CelestialMechanics.Simulation;
 
@@ -185,6 +186,22 @@ public class SimulationService : IDisposable
         {
             action(_engine);
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Offsets a body's position by the given delta (for Edit mode dragging).
+    /// Uses body index for efficiency.
+    /// </summary>
+    public void OffsetBodyPosition(int bodyIndex, float dx, float dy, float dz)
+    {
+        lock (_engineLock)
+        {
+            var bodies = _engine.Bodies;
+            if (bodies == null || bodyIndex < 0 || bodyIndex >= bodies.Length) return;
+
+            ref var body = ref bodies[bodyIndex];
+            body.Position = new Vec3d(body.Position.X + dx, body.Position.Y + dy, body.Position.Z + dz);
         }
     }
 

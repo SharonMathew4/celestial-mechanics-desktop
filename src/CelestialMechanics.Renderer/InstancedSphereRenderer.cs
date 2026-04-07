@@ -94,22 +94,24 @@ public class InstancedSphereRenderer : IDisposable
             var model = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(body.Position);
 
             int offset = i * FloatsPerInstance;
-            // Column-major for OpenGL
+            // System.Numerics stores matrices in row-major layout with translation in M41/M42/M43.
+            // GLSL mat4 instance attributes are interpreted as column-major, so we upload the
+            // matrix transposed (row-major sequence) to preserve a correct affine transform.
             _instanceData[offset + 0] = model.M11;
-            _instanceData[offset + 1] = model.M21;
-            _instanceData[offset + 2] = model.M31;
-            _instanceData[offset + 3] = model.M41;
-            _instanceData[offset + 4] = model.M12;
+            _instanceData[offset + 1] = model.M12;
+            _instanceData[offset + 2] = model.M13;
+            _instanceData[offset + 3] = model.M14;
+            _instanceData[offset + 4] = model.M21;
             _instanceData[offset + 5] = model.M22;
-            _instanceData[offset + 6] = model.M32;
-            _instanceData[offset + 7] = model.M42;
-            _instanceData[offset + 8] = model.M13;
-            _instanceData[offset + 9] = model.M23;
+            _instanceData[offset + 6] = model.M23;
+            _instanceData[offset + 7] = model.M24;
+            _instanceData[offset + 8] = model.M31;
+            _instanceData[offset + 9] = model.M32;
             _instanceData[offset + 10] = model.M33;
-            _instanceData[offset + 11] = model.M43;
-            _instanceData[offset + 12] = model.M14;
-            _instanceData[offset + 13] = model.M24;
-            _instanceData[offset + 14] = model.M34;
+            _instanceData[offset + 11] = model.M34;
+            _instanceData[offset + 12] = model.M41;
+            _instanceData[offset + 13] = model.M42;
+            _instanceData[offset + 14] = model.M43;
             _instanceData[offset + 15] = model.M44;
             _instanceData[offset + 16] = body.Color.X;
             _instanceData[offset + 17] = body.Color.Y;
@@ -133,6 +135,50 @@ public class InstancedSphereRenderer : IDisposable
         shader.Use();
         gl.BindVertexArray(_vao);
         gl.DrawElementsInstanced(PrimitiveType.Triangles, (uint)_indexCount, DrawElementsType.UnsignedInt, null, (uint)_instanceCount);
+        gl.BindVertexArray(0);
+    }
+
+    /// <summary>
+    /// Renders a single instance (used for ghost body during placement).
+    /// </summary>
+    public unsafe void RenderSingleInstance(GL gl, ShaderProgram shader, RenderBody body)
+    {
+        // Build single-instance data
+        float[] singleData = new float[FloatsPerInstance];
+        float scale = body.Radius;
+        var model = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(body.Position);
+
+        // Upload row-major sequence so GLSL mat4 receives the transposed affine matrix.
+        singleData[0] = model.M11;
+        singleData[1] = model.M12;
+        singleData[2] = model.M13;
+        singleData[3] = model.M14;
+        singleData[4] = model.M21;
+        singleData[5] = model.M22;
+        singleData[6] = model.M23;
+        singleData[7] = model.M24;
+        singleData[8] = model.M31;
+        singleData[9] = model.M32;
+        singleData[10] = model.M33;
+        singleData[11] = model.M34;
+        singleData[12] = model.M41;
+        singleData[13] = model.M42;
+        singleData[14] = model.M43;
+        singleData[15] = model.M44;
+        singleData[16] = body.Color.X;
+        singleData[17] = body.Color.Y;
+        singleData[18] = body.Color.Z;
+        singleData[19] = body.Color.W;
+        singleData[20] = (float)body.BodyType;
+
+        // Upload single instance
+        gl.BindBuffer(BufferTargetARB.ArrayBuffer, _instanceVbo);
+        fixed (float* ptr = singleData)
+            gl.BufferData(BufferTargetARB.ArrayBuffer, (nuint)InstanceStride, ptr, BufferUsageARB.DynamicDraw);
+
+        shader.Use();
+        gl.BindVertexArray(_vao);
+        gl.DrawElementsInstanced(PrimitiveType.Triangles, (uint)_indexCount, DrawElementsType.UnsignedInt, null, 1);
         gl.BindVertexArray(0);
     }
 

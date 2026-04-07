@@ -25,8 +25,9 @@ public enum UiMode
 /// <summary>
 /// Simulation lifecycle state displayed in the status bar.
 /// Maps from the engine's internal EngineState.
+/// Renamed from SimulationState to avoid collision with Physics.Types.SimulationState.
 /// </summary>
-public enum SimulationState
+public enum SimLifecycleState
 {
     Idle,
     Running,

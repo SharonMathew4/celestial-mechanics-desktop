@@ -36,6 +36,12 @@ public partial class ViewportPanel : UserControl
     private bool _rightMouseDown;
     private Point _lastMousePos;
     private bool _leftMouseDragged;
+    private bool _rightMouseDragged;
+    private Point _lastRightClickPos;
+
+    // Edit mode state: track if we're dragging a body
+    private bool _isDraggingBody;
+    private int _draggedBodyIndex = -1;
 
     // Keyboard input polling timer
     private DispatcherTimer? _keyboardTimer;
@@ -138,6 +144,26 @@ public partial class ViewportPanel : UserControl
                 FocusOnSelectedBody();
                 e.Handled = true;
                 break;
+
+            case Key.Space:
+                // During velocity selection, Space places with zero velocity
+                if (ViewModel?.PlacementPhase == PlacementPhase.ChoosingVelocity)
+                {
+                    ViewModel.PlaceWithZeroVelocity();
+                    Cursor = Cursors.Cross; // Back to position cursor
+                    e.Handled = true;
+                }
+                break;
+
+            case Key.Escape:
+                // Cancel placement
+                if (ViewModel?.IsPlacingObject == true)
+                {
+                    ViewModel.CancelPlacement();
+                    UpdateCursorForMode();
+                    e.Handled = true;
+                }
+                break;
         }
     }
 
@@ -170,11 +196,27 @@ public partial class ViewportPanel : UserControl
             _leftMouseDown = true;
             _leftMouseDragged = false;
             _lastMousePos = e.GetPosition(this);
+
+            // In Edit mode, check if clicking on a body to start dragging
+            if (ViewModel != null && ViewModel.CurrentMode == UiMode.Edit)
+            {
+                var hitIndex = HitTestBody(e.GetPosition(this));
+                if (hitIndex >= 0)
+                {
+                    _isDraggingBody = true;
+                    _draggedBodyIndex = hitIndex;
+                    _renderer.SelectedInstanceIndex = hitIndex;
+                    Cursor = Cursors.SizeAll;
+                }
+            }
+
             CaptureMouse();
         }
         else if (e.ChangedButton == MouseButton.Right)
         {
             _rightMouseDown = true;
+            _rightMouseDragged = false;
+            _lastRightClickPos = e.GetPosition(this);
             _lastMousePos = e.GetPosition(this);
             CaptureMouse();
         }
@@ -189,6 +231,14 @@ public partial class ViewportPanel : UserControl
         }
         else if (e.ChangedButton == MouseButton.Left)
         {
+            // Reset Edit mode dragging state
+            if (_isDraggingBody)
+            {
+                _isDraggingBody = false;
+                _draggedBodyIndex = -1;
+                UpdateCursorForMode();
+            }
+
             // If it was a click (not a drag), handle placement/selection
             if (!_leftMouseDragged && (DateTime.UtcNow - _lastDoubleClick).TotalMilliseconds > 300)
             {
@@ -200,7 +250,11 @@ public partial class ViewportPanel : UserControl
         {
             if (!_rightMouseDown) return;
             _rightMouseDown = false;
-            HandleRightClick();
+            // Only handle as a click (context menu / deselect) if user didn't drag
+            if (!_rightMouseDragged)
+            {
+                HandleRightClick(_lastRightClickPos);
+            }
         }
 
         if (!_leftMouseDown && !_rightMouseDown && !_middleMouseDown)
@@ -216,14 +270,35 @@ public partial class ViewportPanel : UserControl
         float deltaY = (float)(pos.Y - _lastMousePos.Y);
         _lastMousePos = pos;
 
-        // Middle mouse drag: camera orbit/pan
+        // ── Two-step placement: update ghost or velocity endpoint ────
+        if (ViewModel != null && ViewModel.IsPlacingObject)
+        {
+            var (worldX, worldY, worldZ) = ScreenToWorldXZPlane(pos);
+
+            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
+            {
+                ViewModel.UpdateGhostPosition(worldX, worldY, worldZ);
+            }
+            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+            {
+                ViewModel.UpdateVelocityEndpoint(worldX, worldY, worldZ);
+            }
+        }
+
+        // Middle mouse drag: always PAN (Blender/Unity convention)
         if (_middleMouseDown)
         {
-            if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+            _renderer.Camera.ProcessMousePan(deltaX, deltaY);
+        }
+
+        // Right mouse drag: ORBIT camera
+        if (_rightMouseDown)
+        {
+            if (System.Math.Abs(deltaX) > 2 || System.Math.Abs(deltaY) > 2)
             {
-                _renderer.Camera.ProcessMousePan(deltaX, deltaY);
+                _rightMouseDragged = true;
             }
-            else
+            if (_rightMouseDragged)
             {
                 _renderer.Camera.ProcessMouseOrbit(deltaX, deltaY);
             }
@@ -237,8 +312,17 @@ public partial class ViewportPanel : UserControl
                 _leftMouseDragged = true;
             }
 
-            // In Idle or Simulate mode, left-drag also orbits the camera
-            if (_leftMouseDragged && ViewModel != null &&
+            // In Edit mode with a body selected, drag moves the body
+            if (_leftMouseDragged && ViewModel != null && ViewModel.CurrentMode == UiMode.Edit)
+            {
+                if (_isDraggingBody && _draggedBodyIndex >= 0 && _simService != null)
+                {
+                    var (dx, dz) = ScreenDeltaToWorldDelta(deltaX, deltaY);
+                    _simService.OffsetBodyPosition(_draggedBodyIndex, dx, 0, dz);
+                }
+            }
+            // In Idle or Simulate mode, left-drag orbits the camera
+            else if (_leftMouseDragged && ViewModel != null &&
                 (ViewModel.CurrentMode == UiMode.Idle || ViewModel.CurrentMode == UiMode.Simulate))
             {
                 _renderer.Camera.ProcessMouseOrbit(deltaX, deltaY);
@@ -272,8 +356,19 @@ public partial class ViewportPanel : UserControl
 
         if (ViewModel.IsPlacingObject)
         {
-            var (worldX, worldY, worldZ) = ScreenToWorldXZPlane(screenPos);
-            ViewModel.PlaceObjectAt(worldX, worldY, worldZ);
+            // Two-step placement flow
+            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
+            {
+                // First click: confirm position
+                ViewModel.ConfirmPosition();
+                Cursor = Cursors.ScrollAll; // Change cursor for velocity phase
+            }
+            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+            {
+                // Second click: confirm velocity and place
+                ViewModel.ConfirmVelocityAndPlace();
+                Cursor = Cursors.Cross; // Back to position cursor
+            }
         }
         else
         {
@@ -322,21 +417,104 @@ public partial class ViewportPanel : UserControl
         }
     }
 
-    /// <summary>Right click: cancel placement or deselect.</summary>
-    private void HandleRightClick()
+    /// <summary>Right click (no drag): cancel placement, open context menu, or deselect.</summary>
+    private void HandleRightClick(Point screenPos)
     {
-        if (ViewModel == null) return;
+        if (ViewModel == null || _renderer == null) return;
 
         if (ViewModel.IsPlacingObject)
         {
             ViewModel.CancelPlacement();
+            UpdateCursorForMode();
+            return;
+        }
+
+        // Raycast to check if a body was clicked
+        var renderState = _renderer.RenderState;
+        int hitIndex = SelectionHelper.Raycast(
+            (float)screenPos.X, (float)screenPos.Y,
+            (float)ActualWidth, (float)ActualHeight,
+            _renderer.Camera, renderState.Bodies, renderState.BodyCount);
+
+        if (hitIndex >= 0)
+        {
+            // Select the body and open inspector
+            _renderer.SelectedInstanceIndex = hitIndex;
+            int bodyId = renderState.Bodies[hitIndex].Id;
+            ViewModel.SelectBodyById(bodyId);
+            ViewModel.RightPanelTabIndex = 0; // Switch to Inspector
+            ViewModel.ShowInspector = true;
+
+            // Show context menu at click position
+            ShowBodyContextMenu(screenPos, bodyId);
         }
         else
         {
-            _renderer!.SelectedInstanceIndex = -1;
+            // Clicked empty space: deselect
+            _renderer.SelectedInstanceIndex = -1;
             ViewModel.DeselectBody();
         }
         UpdateCursorForMode();
+    }
+
+    /// <summary>Shows a themed context menu for the selected body.</summary>
+    private void ShowBodyContextMenu(Point screenPos, int bodyId)
+    {
+        if (ViewModel == null) return;
+
+        var menu = new ContextMenu
+        {
+            Background = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x12, 0x18, 0x29)),
+            BorderBrush = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0x2A, 0x30, 0x48)),
+            BorderThickness = new Thickness(1),
+            Foreground = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(0xE8, 0xEA, 0xF0)),
+        };
+
+        var inspectItem = new MenuItem { Header = "🔍  Inspect Properties" };
+        inspectItem.Click += (_, _) => { ViewModel.RightPanelTabIndex = 0; ViewModel.ShowInspector = true; };
+
+        var focusItem = new MenuItem { Header = "🎯  Focus Camera  (F)" };
+        focusItem.Click += (_, _) => FocusOnSelectedBody();
+
+        var editOrbitItem = new MenuItem { Header = "🔄  Edit Orbit" };
+        editOrbitItem.Click += (_, _) => 
+        {
+            ViewModel.CurrentMode = UiMode.Edit;
+            ViewModel.RightPanelTabIndex = 0;
+            ViewModel.ShowInspector = true;
+        };
+
+        var deleteItem = new MenuItem { Header = "❌  Delete  (Del)" };
+        deleteItem.Click += (_, _) => ViewModel.DeleteSelectedBodyCommand.Execute(null);
+
+        var copyPosItem = new MenuItem { Header = "📋  Copy Position" };
+        copyPosItem.Click += (_, _) =>
+        {
+            var rs = _renderer!.RenderState;
+            int idx = _renderer.SelectedInstanceIndex;
+            if (idx >= 0 && idx < rs.BodyCount)
+            {
+                var p = rs.Bodies[idx].Position;
+                Clipboard.SetText($"({p.X:F4}, {p.Y:F4}, {p.Z:F4})");
+            }
+        };
+
+        var setReferenceItem = new MenuItem { Header = "🌐  Set as Reference Frame" };
+        setReferenceItem.Click += (_, _) => ViewModel.SetReferenceFrameCommand.Execute(bodyId);
+
+        menu.Items.Add(inspectItem);
+        menu.Items.Add(focusItem);
+        menu.Items.Add(editOrbitItem);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(deleteItem);
+        menu.Items.Add(copyPosItem);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(setReferenceItem);
+
+        menu.IsOpen = true;
     }
 
     /// <summary>Focuses the camera on the currently selected body (F key).</summary>
@@ -399,6 +577,62 @@ public partial class ViewportPanel : UserControl
         return (hitPoint.X, 0f, hitPoint.Z);
     }
 
+    /// <summary>
+    /// Converts a screen-space delta (pixels) to a world-space delta on the XZ plane,
+    /// based on current camera orientation and distance.
+    /// </summary>
+    private (float dx, float dz) ScreenDeltaToWorldDelta(float screenDeltaX, float screenDeltaY)
+    {
+        if (_renderer == null) return (0, 0);
+
+        var cam = _renderer.Camera;
+        float viewW = (float)ActualWidth;
+        float viewH = (float)ActualHeight;
+        if (viewW < 1 || viewH < 1) return (0, 0);
+
+        // Get camera's right and up vectors in world space
+        var view = cam.GetViewMatrix();
+        var camRight = new Vector3(view.M11, view.M21, view.M31);
+        var camUp = new Vector3(view.M12, view.M22, view.M32);
+
+        // Scale factor based on camera distance (approximate world units per pixel)
+        float scale = cam.Distance * 0.002f;
+
+        // Move in camera's right direction for X movement, and forward (projected) for Y
+        // We want movement on the XZ plane, so project camUp onto XZ
+        var camForwardXZ = new Vector3(-view.M13, 0, -view.M33);
+        if (camForwardXZ.LengthSquared() > 0.001f)
+            camForwardXZ = Vector3.Normalize(camForwardXZ);
+        else
+            camForwardXZ = new Vector3(0, 0, -1);
+
+        // Project camRight onto XZ plane for horizontal movement
+        var camRightXZ = new Vector3(camRight.X, 0, camRight.Z);
+        if (camRightXZ.LengthSquared() > 0.001f)
+            camRightXZ = Vector3.Normalize(camRightXZ);
+        else
+            camRightXZ = new Vector3(1, 0, 0);
+
+        // Convert screen delta to world movement
+        var worldDelta = camRightXZ * screenDeltaX * scale + camForwardXZ * (-screenDeltaY) * scale;
+        return (worldDelta.X, worldDelta.Z);
+    }
+
+    /// <summary>
+    /// Performs a raycast to find which body (if any) is under the given screen position.
+    /// Returns the body index or -1 if no body hit.
+    /// </summary>
+    private int HitTestBody(Point screenPos)
+    {
+        if (_renderer == null) return -1;
+
+        var renderState = _renderer.RenderState;
+        return SelectionHelper.Raycast(
+            (float)screenPos.X, (float)screenPos.Y,
+            (float)ActualWidth, (float)ActualHeight,
+            _renderer.Camera, renderState.Bodies, renderState.BodyCount);
+    }
+
     private void UpdateCursorForMode()
     {
         if (ViewModel == null)
@@ -409,7 +643,9 @@ public partial class ViewportPanel : UserControl
 
         Cursor = ViewModel.CurrentMode switch
         {
-            UiMode.AddPlacement => Cursors.Cross,
+            UiMode.AddPlacement => ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity
+                ? Cursors.ScrollAll
+                : Cursors.Cross,
             UiMode.Edit => Cursors.Hand,
             _ => Cursors.Arrow
         };

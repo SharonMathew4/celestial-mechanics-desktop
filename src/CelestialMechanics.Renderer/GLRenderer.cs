@@ -11,6 +11,7 @@ public class GLRenderer : IDisposable
     private InstancedSphereRenderer _sphereRenderer = new();
     private GridRenderer _gridRenderer = new();
     private LineRenderer _lineRenderer = new();
+    private LineRenderer _previewLineRenderer = new(); // For velocity/trajectory preview
     private StarfieldRenderer _starfieldRenderer = new();
     private TrailRenderer _trailRenderer = new();
     private ShaderProgram? _sphereShader;
@@ -36,6 +37,38 @@ public class GLRenderer : IDisposable
     /// Set from the UI thread when user clicks a body.
     /// </summary>
     public int SelectedInstanceIndex { get; set; } = -1;
+
+    // ── Ghost Body & Placement Preview (Module B) ────────────────────
+
+    /// <summary>Whether to show the ghost body during placement.</summary>
+    public bool ShowGhost { get; set; }
+
+    /// <summary>Position of the ghost body.</summary>
+    public Vector3 GhostPosition { get; set; }
+
+    /// <summary>Radius of the ghost body.</summary>
+    public float GhostRadius { get; set; } = 0.1f;
+
+    /// <summary>Alpha transparency of the ghost body (0.4 during position, 1.0 when confirmed).</summary>
+    public float GhostAlpha { get; set; } = 0.4f;
+
+    /// <summary>Body type index for ghost rendering.</summary>
+    public int GhostBodyType { get; set; }
+
+    /// <summary>Whether to show the velocity preview line.</summary>
+    public bool ShowVelocityPreview { get; set; }
+
+    /// <summary>Start point of velocity preview line (placed position).</summary>
+    public Vector3 VelocityPreviewStart { get; set; }
+
+    /// <summary>End point of velocity preview line (cursor position).</summary>
+    public Vector3 VelocityPreviewEnd { get; set; }
+
+    /// <summary>Whether to show the trajectory preview.</summary>
+    public bool ShowTrajectoryPreview { get; set; }
+
+    /// <summary>Trajectory preview points (gravity-bent path).</summary>
+    public Vector3[]? TrajectoryPreview { get; set; }
 
     public void Initialize(GL gl)
     {
@@ -72,6 +105,7 @@ public class GLRenderer : IDisposable
         _sphereRenderer.Initialize(gl);
         _gridRenderer.Initialize(gl);
         _lineRenderer.Initialize(gl);
+        _previewLineRenderer.Initialize(gl);
         _starfieldRenderer.Initialize(gl);
         _trailRenderer.Initialize(gl);
     }
@@ -192,7 +226,99 @@ public class GLRenderer : IDisposable
             _lineShader.SetUniform("uProjection", projection);
             _lineRenderer.Render(_gl, _lineShader);
         }
+
+        // ── Pass 6: Ghost body & Placement previews (Module B) ───────
+        RenderPlacementPreview(view, projection, viewPos);
     }
+
+    /// <summary>
+    /// Renders the ghost body, velocity vector, and trajectory preview during placement.
+    /// </summary>
+    private void RenderPlacementPreview(Matrix4x4 view, Matrix4x4 projection, Vector3 viewPos)
+    {
+        if (_gl == null) return;
+
+        // Render ghost body as a semi-transparent sphere
+        if (ShowGhost)
+        {
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            // Create a single-instance ghost body render
+            var ghostBody = new RenderBody
+            {
+                Id = -999, // Special ID for ghost
+                Position = GhostPosition,
+                Radius = GhostRadius,
+                Color = GetGhostColor(GhostBodyType, GhostAlpha),
+                BodyType = GhostBodyType
+            };
+
+            // Render ghost using sphere shader
+            _sphereShader!.Use();
+            _sphereShader.SetUniform("uView", view);
+            _sphereShader.SetUniform("uProjection", projection);
+            _sphereShader.SetUniform("uViewPos", viewPos);
+            _sphereShader.SetUniform("uTime", _time);
+            _sphereShader.SetUniform("uSelectedId", -1); // Don't highlight ghost
+
+            // Use single-instance render for ghost
+            _sphereRenderer.RenderSingleInstance(_gl, _sphereShader, ghostBody);
+
+            _gl.Disable(EnableCap.Blend);
+        }
+
+        // Render velocity preview line and trajectory
+        if (ShowVelocityPreview || ShowTrajectoryPreview)
+        {
+            _previewLineRenderer.Clear();
+
+            // Velocity vector line (cyan)
+            if (ShowVelocityPreview)
+            {
+                _previewLineRenderer.AddLine(
+                    VelocityPreviewStart,
+                    VelocityPreviewEnd,
+                    new Vector4(0.0f, 1.0f, 1.0f, 0.9f)); // Cyan
+            }
+
+            // Trajectory preview (orange, multiple segments)
+            if (ShowTrajectoryPreview && TrajectoryPreview != null && TrajectoryPreview.Length > 1)
+            {
+                var trajectoryColor = new Vector4(1.0f, 0.6f, 0.0f, 0.7f); // Orange
+                for (int i = 0; i < TrajectoryPreview.Length - 1; i++)
+                {
+                    // Fade alpha along trajectory
+                    float alpha = 0.7f * (1.0f - (float)i / TrajectoryPreview.Length);
+                    var color = new Vector4(1.0f, 0.6f, 0.0f, alpha);
+                    _previewLineRenderer.AddLine(TrajectoryPreview[i], TrajectoryPreview[i + 1], color);
+                }
+            }
+
+            _previewLineRenderer.Upload();
+
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            _lineShader!.Use();
+            _lineShader.SetUniform("uView", view);
+            _lineShader.SetUniform("uProjection", projection);
+            _previewLineRenderer.Render(_gl, _lineShader);
+            _gl.Disable(EnableCap.Blend);
+        }
+    }
+
+    /// <summary>Gets the color for the ghost body based on body type.</summary>
+    private static Vector4 GetGhostColor(int bodyType, float alpha) => bodyType switch
+    {
+        0 => new Vector4(1.0f, 0.9f, 0.3f, alpha), // Star
+        1 or 3 => new Vector4(0.2f, 0.4f, 0.8f, alpha), // Planet/RockyPlanet
+        2 => new Vector4(0.8f, 0.7f, 0.5f, alpha), // GasGiant
+        4 => new Vector4(0.7f, 0.7f, 0.7f, alpha), // Moon
+        5 or 8 => new Vector4(0.5f, 0.5f, 0.4f, alpha), // Asteroid/Comet
+        6 => new Vector4(0.5f, 0.8f, 1.0f, alpha), // NeutronStar
+        7 => new Vector4(0.1f, 0.0f, 0.1f, alpha), // BlackHole
+        _ => new Vector4(0.6f, 0.6f, 0.6f, alpha),
+    };
 
     /// <summary>Clears all trail data (e.g., on simulation reset).</summary>
     public void ClearTrails()
@@ -205,6 +331,7 @@ public class GLRenderer : IDisposable
         _sphereRenderer.Dispose();
         _gridRenderer.Dispose();
         _lineRenderer.Dispose();
+        _previewLineRenderer.Dispose();
         _starfieldRenderer.Dispose();
         _trailRenderer.Dispose();
         _sphereShader?.Dispose();

@@ -60,6 +60,9 @@
                         <CheckBox Content="SIMD Vectorization"
                                   IsChecked="{Binding UseSimd, Mode=TwoWay}"
                                   Style="{StaticResource InspectorCheckBoxStyle}"/>
+                        <CheckBox Content="Native GPU Backend (CUDA)"
+                                  IsChecked="{Binding UseNativeGpuBackend, Mode=TwoWay}"
+                                  Style="{StaticResource InspectorCheckBoxStyle}"/>
                         <CheckBox Content="SoA Data Path"
                                   IsChecked="{Binding UseSoAPath, Mode=TwoWay}"
                                   Style="{StaticResource InspectorCheckBoxStyle}"/>

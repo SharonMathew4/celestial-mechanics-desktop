@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CelestialMechanics.Desktop.Models;
 using CelestialMechanics.Desktop.Services;
+using CelestialMechanics.Desktop.Infrastructure;
 using CelestialMechanics.Math;
 using CelestialMechanics.Physics.Types;
 using CelestialMechanics.Renderer;
@@ -30,6 +31,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public SimulationService SimService => _simService;
     public SceneService SceneService => _sceneService;
     public GLRenderer Renderer => _renderer;
+
+    /// <summary>Reference to the render loop for reading FPS metrics. Set after viewport init.</summary>
+    public RenderLoop? ActiveRenderLoop { get; set; }
 
     // ── Child ViewModels ─────────────────────────────────────────────
 
@@ -95,9 +99,34 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private BodyType _selectedBodyType = BodyType.Star;
 
+    /// <summary>The currently selected subtype for placement (from cascading menu).</summary>
+    [ObservableProperty]
+    private BodySubtype? _selectedSubtype;
+
     /// <summary>All body types available for the palette.</summary>
     public IReadOnlyList<BodyType> AllBodyTypes { get; } =
         Enum.GetValues<BodyType>().ToList().AsReadOnly();
+
+    // ── Two-Step Placement State (Module B) ──────────────────────────
+
+    /// <summary>Current phase of the two-step placement workflow.</summary>
+    [ObservableProperty]
+    private PlacementPhase _placementPhase = PlacementPhase.Inactive;
+
+    /// <summary>Ghost body position (follows cursor during ChoosingPosition).</summary>
+    [ObservableProperty]
+    private float _ghostX, _ghostY, _ghostZ;
+
+    /// <summary>Confirmed position after first click (during ChoosingVelocity).</summary>
+    [ObservableProperty]
+    private float _placedX, _placedY, _placedZ;
+
+    /// <summary>Cursor position for velocity vector endpoint (during ChoosingVelocity).</summary>
+    [ObservableProperty]
+    private float _velocityEndX, _velocityEndY, _velocityEndZ;
+
+    /// <summary>Scale factor for converting cursor distance to velocity magnitude.</summary>
+    private const float VelocityScaleFactor = 0.5f;
 
     // ── Time Scale (Time Flow Slider) ────────────────────────────────
 
@@ -128,7 +157,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string _momentumText = "P: --";
 
     [ObservableProperty]
-    private SimulationState _simulationState = SimulationState.Idle;
+    private SimLifecycleState _simulationState = SimLifecycleState.Idle;
 
     [ObservableProperty]
     private string _simulationStateText = "Idle";
@@ -271,24 +300,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         CurrentProject = project;
         WindowTitle = $"Celestial Mechanics \u2014 {project.Name}";
 
-        // Seed default scene if the simulation has no bodies
-        var currentBodies = _simService.GetBodies();
-        if (currentBodies == null || currentBodies.Length == 0)
-        {
-            var defaultBodies = DefaultSceneFactory.CreateSolarSystem();
-            _simService.LoadBodies(defaultBodies);
-        }
-
-        // Rebuild scene graph from engine bodies
+        // Do not auto-load presets. Keep whatever scene the project currently has
+        // (new projects start empty; loaded projects keep their saved bodies).
         _sceneService.RepopulateFromSimulation(_simService);
 
         // Start simulation engine and UI timer
         _simService.StartSimThread();
+        _simService.Play();  // BUG 1 FIX: Auto-start so bodies orbit immediately
         _renderer.ClearTrails();
         _uiTimer.Start();
 
         NavState = NavigationState.SimulationIDE;
         CurrentMode = UiMode.Idle;
+
+        // Reset camera to a good default view
+        _renderer.Camera.ResetToDefault();
 
         // Refresh outliner
         SceneOutlinerVm.Refresh();
@@ -458,12 +484,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             CurrentMode = UiMode.Idle;
             IsPlacingObject = false;
+            PlacementPhase = PlacementPhase.Inactive;
             PlacementObjectType = string.Empty;
         }
         else
         {
             CurrentMode = UiMode.AddPlacement;
             IsPlacingObject = true;
+            PlacementPhase = PlacementPhase.ChoosingPosition;
             SelectedBodyType = BodyType.Star;
             PlacementObjectType = "Star";
         }
@@ -521,27 +549,232 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         SelectedBodyType = type;
         PlacementObjectType = type.ToString();
+        
+        // Auto-select first subtype in category
+        var subtypes = BodyCatalog.GetSubtypes(type);
+        SelectedSubtype = subtypes.Count > 0 ? subtypes[0] : null;
     }
 
     /// <summary>
-    /// Called by ViewportPanel when user left-clicks to place an object.
+    /// Selects a specific subtype for placement.
+    /// Called from the cascading subtype menu.
     /// </summary>
-    public void PlaceObjectAt(float worldX, float worldY, float worldZ)
+    public void SelectSubtype(BodySubtype subtype)
     {
-        if (!IsPlacingObject) return;
+        SelectedSubtype = subtype;
+        SelectedBodyType = subtype.BaseType;
+        PlacementObjectType = subtype.Name;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  TWO-STEP PLACEMENT (Module B)
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Updates the ghost position from cursor world coordinates.
+    /// Called by ViewportPanel during ChoosingPosition phase.
+    /// </summary>
+    public void UpdateGhostPosition(float worldX, float worldY, float worldZ)
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingPosition) return;
+        GhostX = worldX;
+        GhostY = worldY;
+        GhostZ = worldZ;
+        UpdateRendererGhost();
+    }
+
+    /// <summary>
+    /// Updates the velocity endpoint from cursor world coordinates.
+    /// Called by ViewportPanel during ChoosingVelocity phase.
+    /// </summary>
+    public void UpdateVelocityEndpoint(float worldX, float worldY, float worldZ)
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+        VelocityEndX = worldX;
+        VelocityEndY = worldY;
+        VelocityEndZ = worldZ;
+        UpdateRendererVelocityPreview();
+    }
+
+    /// <summary>
+    /// Confirms the ghost position and moves to velocity selection phase.
+    /// Called when user first-clicks during ChoosingPosition.
+    /// </summary>
+    public void ConfirmPosition()
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingPosition) return;
+
+        PlacedX = GhostX;
+        PlacedY = GhostY;
+        PlacedZ = GhostZ;
+        VelocityEndX = PlacedX;
+        VelocityEndY = PlacedY;
+        VelocityEndZ = PlacedZ;
+        PlacementPhase = PlacementPhase.ChoosingVelocity;
+
+        // Update renderer ghost to be at confirmed position (solid)
+        _renderer.GhostPosition = new System.Numerics.Vector3(PlacedX, PlacedY, PlacedZ);
+        _renderer.GhostAlpha = 1.0f;
+        _renderer.GhostRadius = (float)GetPlacementRadius();
+        _renderer.GhostBodyType = (int)SelectedBodyType;
+        _renderer.ShowGhost = true;
+    }
+
+    /// <summary>
+    /// Confirms velocity and places the body in the simulation.
+    /// Called when user second-clicks during ChoosingVelocity.
+    /// </summary>
+    public void ConfirmVelocityAndPlace()
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+
+        var placedPos = new Vec3d(PlacedX, PlacedY, PlacedZ);
+        var cursorPos = new Vec3d(VelocityEndX, VelocityEndY, VelocityEndZ);
+        var velocity = ComputeVelocityFromCursor(placedPos, cursorPos);
 
         _simService.WithEngineLock(engine =>
         {
             int nextId = (engine.Bodies?.Length ?? 0) + 1;
             var body = new PhysicsBody(
                 nextId,
-                mass: DefaultMassForType(SelectedBodyType),
-                position: new Vec3d(worldX, worldY, worldZ),
+                mass: GetPlacementMass(),
+                position: placedPos,
+                velocity: velocity,
+                type: SelectedBodyType);
+            engine.AddBody(body);
+        });
+
+        _sceneService.RepopulateFromSimulation(_simService);
+
+        // Return to ChoosingPosition for continuous placement
+        PlacementPhase = PlacementPhase.ChoosingPosition;
+        ClearRendererPreview();
+    }
+
+    /// <summary>
+    /// Places body with zero velocity (for stationary bodies).
+    /// Called on Space key or double-click during ChoosingVelocity.
+    /// </summary>
+    public void PlaceWithZeroVelocity()
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+
+        var placedPos = new Vec3d(PlacedX, PlacedY, PlacedZ);
+
+        _simService.WithEngineLock(engine =>
+        {
+            int nextId = (engine.Bodies?.Length ?? 0) + 1;
+            var body = new PhysicsBody(
+                nextId,
+                mass: GetPlacementMass(),
+                position: placedPos,
                 velocity: Vec3d.Zero,
                 type: SelectedBodyType);
             engine.AddBody(body);
         });
+
         _sceneService.RepopulateFromSimulation(_simService);
+
+        // Return to ChoosingPosition for continuous placement
+        PlacementPhase = PlacementPhase.ChoosingPosition;
+        ClearRendererPreview();
+    }
+
+    /// <summary>
+    /// Computes the velocity vector from placed position to cursor position.
+    /// </summary>
+    private Vec3d ComputeVelocityFromCursor(Vec3d placedPos, Vec3d cursorPos)
+    {
+        var delta = cursorPos - placedPos;
+        return delta * VelocityScaleFactor;
+    }
+
+    /// <summary>
+    /// Computes a gravity-bent trajectory preview using simple Euler integration.
+    /// </summary>
+    public System.Numerics.Vector3[] ComputeTrajectoryPreview(Vec3d pos, Vec3d vel, int steps = 50)
+    {
+        var trajectory = new System.Numerics.Vector3[steps];
+        var currentPos = pos;
+        var currentVel = vel;
+        const double dt = 0.02; // Time step for preview
+        const double G = 1.0;   // Gravitational constant (simulation units)
+        const double softeningEps = 0.01;
+
+        // Get current bodies from engine
+        PhysicsBody[]? bodies = null;
+        _simService.WithEngineLock(engine =>
+        {
+            bodies = engine.Bodies?.ToArray();
+        });
+
+        for (int i = 0; i < steps; i++)
+        {
+            trajectory[i] = new System.Numerics.Vector3((float)currentPos.X, (float)currentPos.Y, (float)currentPos.Z);
+
+            // Compute gravitational acceleration from all existing bodies
+            var accel = Vec3d.Zero;
+            if (bodies != null)
+            {
+                foreach (var body in bodies)
+                {
+                    if (!body.IsActive) continue;
+                    var r = body.Position - currentPos;
+                    double distSq = r.LengthSquared + softeningEps * softeningEps;
+                    double dist = System.Math.Sqrt(distSq);
+                    if (dist < 0.001) continue;
+                    double forceMag = G * body.Mass / distSq;
+                    accel = accel + r.Normalized() * forceMag;
+                }
+            }
+
+            // Euler integration step
+            currentVel = currentVel + accel * dt;
+            currentPos = currentPos + currentVel * dt;
+        }
+
+        return trajectory;
+    }
+
+    /// <summary>Gets the mass for the current placement (from subtype or default).</summary>
+    private double GetPlacementMass() =>
+        SelectedSubtype?.Mass ?? DefaultMassForType(SelectedBodyType);
+
+    /// <summary>Gets the radius for the current placement (from subtype or default).</summary>
+    private double GetPlacementRadius() =>
+        SelectedSubtype?.Radius ?? DefaultRadiusForType(SelectedBodyType);
+
+    private void UpdateRendererGhost()
+    {
+        _renderer.GhostPosition = new System.Numerics.Vector3(GhostX, GhostY, GhostZ);
+        _renderer.GhostAlpha = 0.4f;
+        _renderer.GhostRadius = (float)GetPlacementRadius();
+        _renderer.GhostBodyType = (int)SelectedBodyType;
+        _renderer.ShowGhost = true;
+    }
+
+    private void UpdateRendererVelocityPreview()
+    {
+        var placedPos = new Vec3d(PlacedX, PlacedY, PlacedZ);
+        var cursorPos = new Vec3d(VelocityEndX, VelocityEndY, VelocityEndZ);
+        var velocity = ComputeVelocityFromCursor(placedPos, cursorPos);
+
+        // Update velocity vector line
+        _renderer.VelocityPreviewStart = new System.Numerics.Vector3(PlacedX, PlacedY, PlacedZ);
+        _renderer.VelocityPreviewEnd = new System.Numerics.Vector3(VelocityEndX, VelocityEndY, VelocityEndZ);
+        _renderer.ShowVelocityPreview = true;
+
+        // Compute and update trajectory preview
+        _renderer.TrajectoryPreview = ComputeTrajectoryPreview(placedPos, velocity, 50);
+        _renderer.ShowTrajectoryPreview = true;
+    }
+
+    private void ClearRendererPreview()
+    {
+        _renderer.ShowGhost = false;
+        _renderer.ShowVelocityPreview = false;
+        _renderer.ShowTrajectoryPreview = false;
+        _renderer.TrajectoryPreview = null;
     }
 
     /// <summary>
@@ -552,10 +785,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (CurrentMode == UiMode.AddPlacement)
         {
             IsPlacingObject = false;
+            PlacementPhase = PlacementPhase.Inactive;
             PlacementObjectType = string.Empty;
             CurrentMode = UiMode.Idle;
+            ClearRendererPreview();
         }
     }
+
+    /// <summary>Returns a sensible default radius for each body type (in AU).</summary>
+    private static double DefaultRadiusForType(BodyType type) => type switch
+    {
+        BodyType.Star => 0.1,
+        BodyType.Planet => 0.03,
+        BodyType.GasGiant => 0.05,
+        BodyType.RockyPlanet => 0.02,
+        BodyType.Moon => 0.01,
+        BodyType.Asteroid => 0.005,
+        BodyType.NeutronStar => 0.02,
+        BodyType.BlackHole => 0.08,
+        BodyType.Comet => 0.003,
+        BodyType.Custom => 0.04,
+        _ => 0.04,
+    };
 
     // ═══════════════════════════════════════════════════════════════
     //  BODY MANAGEMENT (Phase 4)
@@ -603,6 +854,77 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             DeleteBody(bodyId.Value);
     }
 
+    /// <summary>
+    /// Sets the selected body as the camera reference frame (tracks this body).
+    /// </summary>
+    [RelayCommand]
+    private void SetReferenceFrame(int bodyId)
+    {
+        _simService.WithEngineLock(engine =>
+        {
+            var bodies = engine.Bodies;
+            if (bodies == null) return;
+
+            for (int i = 0; i < bodies.Length; i++)
+            {
+                if (bodies[i].Id == bodyId)
+                {
+                    var pos = new System.Numerics.Vector3(
+                        (float)bodies[i].Position.X,
+                        (float)bodies[i].Position.Y,
+                        (float)bodies[i].Position.Z);
+                    float dist = MathF.Max((float)bodies[i].Radius * 5f, 2f);
+                    _renderer.Camera.FlyTo(pos, dist);
+                    // Camera now tracks this position; future updates will keep it centered
+                    break;
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Inspects the currently selected body (opens inspector panel).
+    /// </summary>
+    [RelayCommand]
+    private void InspectBody()
+    {
+        RightPanelTabIndex = 0;
+        ShowInspector = true;
+    }
+
+    /// <summary>
+    /// Focuses the camera on the currently selected body.
+    /// </summary>
+    [RelayCommand]
+    private void FocusCameraOnSelected()
+    {
+        var selectedNodeId = _sceneService.SelectionManager.SelectedEntity;
+        if (selectedNodeId == null) return;
+        
+        var bodyId = _sceneService.GetBodyIdForNode(selectedNodeId.Value);
+        if (!bodyId.HasValue) return;
+
+        _simService.WithEngineLock(engine =>
+        {
+            var bodies = engine.Bodies;
+            if (bodies == null) return;
+
+            for (int i = 0; i < bodies.Length; i++)
+            {
+                if (bodies[i].Id == bodyId.Value)
+                {
+                    var pos = new System.Numerics.Vector3(
+                        (float)bodies[i].Position.X,
+                        (float)bodies[i].Position.Y,
+                        (float)bodies[i].Position.Z);
+                    float dist = MathF.Max((float)bodies[i].Radius * 4f, 2f);
+                    _renderer.Camera.FlyTo(pos, dist);
+                    break;
+                }
+            }
+        });
+    }
+
     /// <summary>Returns a sensible default mass for each body type.</summary>
     private static double DefaultMassForType(BodyType type) => type switch
     {
@@ -647,10 +969,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         _simService.Pause();
         _simService.ResetScene();
-
-        // Reload default solar system
-        var defaultBodies = DefaultSceneFactory.CreateSolarSystem();
-        _simService.LoadBodies(defaultBodies);
 
         _sceneService.RepopulateFromSimulation(_simService);
         _renderer.ClearTrails();
@@ -707,9 +1025,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         SimulationState = state switch
         {
-            EngineState.Running => SimulationState.Running,
-            EngineState.Paused  => SimulationState.Paused,
-            _                   => SimulationState.Idle
+            EngineState.Running => SimLifecycleState.Running,
+            EngineState.Paused  => SimLifecycleState.Paused,
+            _                   => SimLifecycleState.Idle
         };
         SimulationStateText = SimulationState.ToString();
 
@@ -730,6 +1048,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             BodyCountText = $"Bodies: {engine.Bodies?.Length ?? 0}";
         });
+
+        // BUG 3 FIX: Read FPS/render metrics from the render loop
+        if (ActiveRenderLoop?.IsInitialized == true)
+        {
+            UpdateRenderMetrics(ActiveRenderLoop.CurrentFps, ActiveRenderLoop.LastRenderTimeMs);
+        }
     }
 
     /// <summary>

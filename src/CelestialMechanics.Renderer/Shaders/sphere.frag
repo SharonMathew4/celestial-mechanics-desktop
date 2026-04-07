@@ -6,6 +6,7 @@ in vec3 vLocalPos;
 in vec4 vColor;
 flat in int vBodyType;
 flat in int vInstanceId;
+flat in float vSubtypeHint;
 in float vTime;
 
 uniform vec3 uViewPos;
@@ -110,17 +111,55 @@ const int BODY_CUSTOM      = 9;
 // Per-body-type procedural texturing
 // ════════════════════════════════════════════════════════════════
 
-vec3 starTexture(vec3 localPos, float time)
+// Subtype hints for star variations:
+// 0.0 = Main Sequence (default yellow-orange)
+// 0.1 = Red Giant (redder, larger convection cells)
+// 0.2 = Blue Supergiant (blue-shifted plasma)
+// 0.3 = White Dwarf (white/compact pattern)
+// 0.4 = Red Dwarf (dim red)
+// 0.5 = Yellow Dwarf (Sun-like)
+
+vec3 starTexture(vec3 localPos, float time, float subtypeHint)
 {
     // Animated plasma surface with turbulent convection
-    vec3 p = localPos * 3.0;
+    // Scale noise based on subtype (Red Giants have larger cells)
+    float noiseScale = 3.0;
+    if (subtypeHint > 0.05 && subtypeHint < 0.15) noiseScale = 1.5; // Red Giant: larger cells
+    if (subtypeHint > 0.25 && subtypeHint < 0.35) noiseScale = 6.0; // White Dwarf: compact
+
+    vec3 p = localPos * noiseScale;
     float n1 = fbm(p + vec3(time * 0.15, time * 0.1, -time * 0.08), 5);
     float n2 = fbm(p * 2.0 + vec3(-time * 0.2, time * 0.12, time * 0.05), 4);
 
-    // Base color: yellow-orange with hot spots
-    vec3 coolColor = vec3(1.0, 0.6, 0.1);   // Orange
-    vec3 hotColor  = vec3(1.0, 1.0, 0.8);   // White-yellow
-    vec3 darkColor = vec3(0.8, 0.3, 0.05);  // Dark orange (sunspots)
+    // Base colors vary by subtype
+    vec3 coolColor, hotColor, darkColor;
+
+    if (subtypeHint > 0.05 && subtypeHint < 0.15) {
+        // Red Giant: deep red to orange
+        coolColor = vec3(0.8, 0.2, 0.05);
+        hotColor  = vec3(1.0, 0.5, 0.2);
+        darkColor = vec3(0.4, 0.1, 0.02);
+    } else if (subtypeHint > 0.15 && subtypeHint < 0.25) {
+        // Blue Supergiant: blue-white
+        coolColor = vec3(0.5, 0.7, 1.0);
+        hotColor  = vec3(0.9, 0.95, 1.0);
+        darkColor = vec3(0.2, 0.4, 0.8);
+    } else if (subtypeHint > 0.25 && subtypeHint < 0.35) {
+        // White Dwarf: bright white with blue tinge
+        coolColor = vec3(0.9, 0.92, 1.0);
+        hotColor  = vec3(1.0, 1.0, 1.0);
+        darkColor = vec3(0.7, 0.75, 0.85);
+    } else if (subtypeHint > 0.35 && subtypeHint < 0.45) {
+        // Red Dwarf: dim red
+        coolColor = vec3(0.6, 0.15, 0.05);
+        hotColor  = vec3(0.8, 0.3, 0.1);
+        darkColor = vec3(0.3, 0.08, 0.02);
+    } else {
+        // Main Sequence / Yellow Dwarf (default)
+        coolColor = vec3(1.0, 0.6, 0.1);   // Orange
+        hotColor  = vec3(1.0, 1.0, 0.8);   // White-yellow
+        darkColor = vec3(0.8, 0.3, 0.05);  // Dark orange (sunspots)
+    }
 
     float hotSpots = smoothstep(0.2, 0.6, n1);
     float sunspots = smoothstep(0.3, 0.5, n2) * 0.3;
@@ -364,7 +403,7 @@ void main()
 
     if (vBodyType == BODY_STAR)
     {
-        surfaceColor = starTexture(vLocalPos, vTime);
+        surfaceColor = starTexture(vLocalPos, vTime, vSubtypeHint);
         emissive = 0.7;
     }
     else if (vBodyType == BODY_PLANET)

@@ -46,9 +46,11 @@ public class NBodySolver
     private ISoAIntegrator _soaIntegrator;
     private readonly IPhysicsComputeBackend _singleThreadBackend;
     private readonly IPhysicsComputeBackend _parallelBackend;
+    private readonly IPhysicsComputeBackend _nativeGpuBackend;
     private bool _useSoA;
     private bool _deterministicMode;
     private bool _useParallel;
+    private bool _useNativeGpu;
     private double _softening;
 
     // ── Barnes-Hut path (Phase 3) ──────────────────────────────────────────────
@@ -91,11 +93,13 @@ public class NBodySolver
         _soaIntegrator       = new SoAVerletIntegrator();
         _singleThreadBackend = new CpuSingleThreadBackend();
         _parallelBackend     = new CpuParallelBackend();
+        _nativeGpuBackend    = new NativeGpuPhysicsBackend();
 
         // SoA disabled by default so existing tests continue to work unchanged.
         _useSoA            = false;
         _deterministicMode = true;
         _useParallel       = false;
+        _useNativeGpu      = false;
         _useBarnesHut      = false;
         _enableCollisions    = false;
         _useSimd             = false;
@@ -146,6 +150,7 @@ public class NBodySolver
     public void ConfigureSoA(bool enabled, double softening,
                              bool deterministic = true, bool useParallel = false,
                              bool useBarnesHut = false, double theta = 0.5,
+                             bool useNativeGpuBackend = false,
                              bool enableCollisions = false, bool useSimd = false,
                              bool enablePostNewtonian = false,
                              bool enableAccretionDisks = false,
@@ -160,6 +165,7 @@ public class NBodySolver
         _deterministicMode        = deterministic;
         _useParallel              = useParallel;
         _useBarnesHut             = useBarnesHut;
+        _useNativeGpu             = useNativeGpuBackend;
         _theta                    = theta;
         _enableCollisions         = enableCollisions;
         _useSimd                  = useSimd;
@@ -325,6 +331,10 @@ public class NBodySolver
                 backend = _barnesHutSingleBackend!;
             else
                 backend = _useParallel ? _barnesHutParallelBackend! : _barnesHutSingleBackend!;
+        }
+        else if (_useNativeGpu)
+        {
+            backend = _nativeGpuBackend;
         }
         else if (_useSimd)
         {

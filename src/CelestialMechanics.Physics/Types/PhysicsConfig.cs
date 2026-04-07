@@ -135,6 +135,13 @@ public class PhysicsConfig
     /// </summary>
     public bool UseSimd { get; set; } = false;
 
+    /// <summary>
+    /// When true, the SoA brute-force path uses the native CUDA backend
+    /// (via celestial_engine.dll) for force computation.
+    /// Falls back to CPU backend when the native library is unavailable.
+    /// </summary>
+    public bool UseNativeGpuBackend { get; set; } = false;
+
     // ── Phase 6: Relativistic & High-Energy Physics ──────────────────────────
 
     /// <summary>

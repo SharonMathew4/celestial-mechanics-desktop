@@ -19,6 +19,7 @@
     <Color x:Key="CyanAccentColor">#FF00C8FF</Color>
     <Color x:Key="ModalOverlayColor">#99000000</Color>
     <Color x:Key="ModalPanelColor">#FF161B22</Color>
+    <Color x:Key="AccentPurpleColor">#FF9C27B0</Color>
 
     <SolidColorBrush x:Key="PanelBackground"   Color="{StaticResource PanelBackgroundColor}"/>
     <SolidColorBrush x:Key="MenuBarBackground"  Color="{StaticResource MenuBarBackgroundColor}"/>
@@ -26,6 +27,7 @@
     <SolidColorBrush x:Key="CyanAccent"         Color="{StaticResource CyanAccentColor}"/>
     <SolidColorBrush x:Key="ModalOverlay"       Color="{StaticResource ModalOverlayColor}"/>
     <SolidColorBrush x:Key="ModalPanel"         Color="{StaticResource ModalPanelColor}"/>
+    <SolidColorBrush x:Key="AccentPurple"       Color="{StaticResource AccentPurpleColor}"/>
 
     <!-- ── Menu Bar Style ──────────────────────────────────────────── -->
     <Style x:Key="MenuBarStyle" TargetType="Menu">
@@ -272,6 +274,90 @@
         <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
         <Setter Property="FontSize"   Value="11"/>
         <Setter Property="Height"     Value="24"/>
+    </Style>
+
+    <!-- ── Body Type Category ToggleButton (for cascading dropdowns) ── -->
+    <Style x:Key="BodyTypeCategoryButtonStyle" TargetType="ToggleButton">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderThickness"  Value="0"/>
+        <Setter Property="Padding"          Value="8,4"/>
+        <Setter Property="FontSize"         Value="10"/>
+        <Setter Property="MinWidth"         Value="64"/>
+        <Setter Property="Margin"           Value="2,0"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource BorderPrimary}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <StackPanel Orientation="Horizontal">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                            <TextBlock Text="▼" FontSize="8" Margin="4,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource TextSecondary}"/>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource Surface}"/>
+                            <Setter TargetName="bg" Property="BorderBrush"
+                                    Value="{StaticResource CyanAccent}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ── Subtype Card Button (inside dropdown) ─────────────────────── -->
+    <Style x:Key="SubtypeCardStyle" TargetType="Button">
+        <Setter Property="Background"      Value="{StaticResource Surface}"/>
+        <Setter Property="Foreground"       Value="{StaticResource TextPrimary}"/>
+        <Setter Property="BorderBrush"      Value="{StaticResource BorderPrimary}"/>
+        <Setter Property="BorderThickness"  Value="1"/>
+        <Setter Property="Padding"          Value="8,6"/>
+        <Setter Property="Margin"           Value="2"/>
+        <Setter Property="MinWidth"         Value="140"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bg"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource SurfaceHover}"/>
+                            <Setter TargetName="bg" Property="BorderBrush"
+                                    Value="{StaticResource CyanAccent}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bg" Property="Background"
+                                    Value="{StaticResource BackgroundTertiary}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- ═══════════════════════════════════════════════════════════════

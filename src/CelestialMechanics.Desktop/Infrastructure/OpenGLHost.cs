@@ -152,6 +152,32 @@ public class OpenGLHost : HwndHost
 
     private static IntPtr DefaultWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
+        // Forward mouse messages to the WPF parent so that WPF routed events
+        // (MouseDown, MouseMove, MouseWheel, etc.) fire on the ViewportPanel.
+        // Without this, the native child HWND consumes all mouse input silently.
+        switch (msg)
+        {
+            case Win32Interop.WM_MOUSEMOVE:
+            case Win32Interop.WM_LBUTTONDOWN:
+            case Win32Interop.WM_LBUTTONUP:
+            case Win32Interop.WM_LBUTTONDBLCLK:
+            case Win32Interop.WM_RBUTTONDOWN:
+            case Win32Interop.WM_RBUTTONUP:
+            case Win32Interop.WM_MBUTTONDOWN:
+            case Win32Interop.WM_MBUTTONUP:
+                var parentHwnd = Win32Interop.GetParent(hWnd);
+                if (parentHwnd != IntPtr.Zero)
+                    Win32Interop.PostMessageA(parentHwnd, msg, wParam, lParam);
+                return IntPtr.Zero;
+
+            case Win32Interop.WM_MOUSEWHEEL:
+                // Mouse wheel messages use screen coordinates; forward as-is
+                var parentHwnd2 = Win32Interop.GetParent(hWnd);
+                if (parentHwnd2 != IntPtr.Zero)
+                    Win32Interop.PostMessageA(parentHwnd2, msg, wParam, lParam);
+                return IntPtr.Zero;
+        }
+
         return Win32Interop.DefWindowProcA(hWnd, msg, wParam, lParam);
     }
 }

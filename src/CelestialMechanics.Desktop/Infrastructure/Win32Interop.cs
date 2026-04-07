@@ -21,6 +21,17 @@ internal static partial class Win32Interop
     // ── Window Messages ────────────────────────────────────────────────
     public const int WM_SIZE = 0x0005;
 
+    // Mouse messages (for forwarding from native HWND to WPF)
+    public const uint WM_MOUSEMOVE = 0x0200;
+    public const uint WM_LBUTTONDOWN = 0x0201;
+    public const uint WM_LBUTTONUP = 0x0202;
+    public const uint WM_LBUTTONDBLCLK = 0x0203;
+    public const uint WM_RBUTTONDOWN = 0x0204;
+    public const uint WM_RBUTTONUP = 0x0205;
+    public const uint WM_MBUTTONDOWN = 0x0207;
+    public const uint WM_MBUTTONUP = 0x0208;
+    public const uint WM_MOUSEWHEEL = 0x020A;
+
     // ── Pixel Format Descriptor flags ──────────────────────────────────
     public const uint PFD_DRAW_TO_WINDOW = 0x00000004;
     public const uint PFD_SUPPORT_OPENGL = 0x00000020;
@@ -119,6 +130,13 @@ internal static partial class Win32Interop
     [DllImport("user32.dll", EntryPoint = "UnregisterClassA", CharSet = CharSet.Ansi)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool UnregisterClass(string lpClassName, IntPtr hInstance);
+
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr GetParent(IntPtr hWnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool PostMessageA(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     // ── gdi32.dll ──────────────────────────────────────────────────────
 

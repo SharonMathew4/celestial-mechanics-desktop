@@ -86,6 +86,7 @@ public sealed class SimulationManager
             useParallel: config.UseParallelComputation,
             useBarnesHut: config.UseBarnesHut,
             theta: config.Theta,
+            useNativeGpuBackend: config.UseNativeGpuBackend,
             enableCollisions: config.EnableCollisions,
             useSimd: config.UseSimd,
             enablePostNewtonian: config.EnablePostNewtonian,

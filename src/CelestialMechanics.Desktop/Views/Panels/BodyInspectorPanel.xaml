@@ -179,6 +179,110 @@
                     </StackPanel>
                 </GroupBox>
 
+                <!-- ── ORBITAL ELEMENTS ──────────────────────────── -->
+                <GroupBox Header="ORBITAL ELEMENTS"
+                          Style="{StaticResource InspectorGroupBoxStyle}"
+                          Visibility="{Binding ShowOrbitalElements,
+                                       Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Central Body"
+                                   Style="{StaticResource InspectorLabelStyle}"/>
+                        <TextBlock Text="{Binding CentralBodyName}"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontFamily="Consolas" FontSize="11"
+                                   Margin="0,0,0,4"/>
+
+                        <TextBlock Text="Orbit Type"
+                                   Style="{StaticResource InspectorLabelStyle}"/>
+                        <TextBlock Text="{Binding OrbitType}"
+                                   Foreground="{StaticResource CyanAccent}"
+                                   FontFamily="Consolas" FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="a (Semi-major)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1"
+                                       Text="{Binding SemiMajorAxis, StringFormat=G5}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="e (Eccentricity)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1"
+                                       Text="{Binding Eccentricity, StringFormat=F6}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="i (Inclination)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1"
+                                       Text="{Binding Inclination, StringFormat=F2}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Ω (RAAN)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1"
+                                       Text="{Binding LongitudeOfAscendingNode, StringFormat=F2}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="ω (Arg Periapsis)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1"
+                                       Text="{Binding ArgumentOfPeriapsis, StringFormat=F2}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="ν (True Anomaly)"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="5" Grid.Column="1"
+                                       Text="{Binding TrueAnomaly, StringFormat=F2}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Periapsis"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1"
+                                       Text="{Binding PeriapsisDistance, StringFormat=G5}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="Apoapsis"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="7" Grid.Column="1"
+                                       Text="{Binding ApoapsisDistance, StringFormat=G5}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Period"
+                                       Style="{StaticResource InspectorLabelStyle}"/>
+                            <TextBlock Grid.Row="8" Grid.Column="1"
+                                       Text="{Binding OrbitalPeriod, StringFormat=G5}"
+                                       Foreground="{StaticResource TextDisabled}"
+                                       FontFamily="Consolas" FontSize="11"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- ── Apply Button ────────────────────────────── -->
                 <Button Content="Apply Changes"
                         Style="{StaticResource GlowToggleButtonStyle}"

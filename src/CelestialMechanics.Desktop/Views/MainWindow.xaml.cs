@@ -32,6 +32,9 @@ public partial class MainWindow : Window
         Viewport.Initialize(_vm.Renderer, _vm.SimService);
         Viewport.ViewModel = _vm;
 
+        // Wire render loop for FPS metrics
+        _vm.ActiveRenderLoop = Viewport.RenderLoop;
+
         // 3. Setup background video playback
         SetupBackgroundVideo();
 
