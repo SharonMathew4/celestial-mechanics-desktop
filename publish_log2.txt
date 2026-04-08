@@ -1,0 +1,10 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  CelestialMechanics.Math -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Math\bin\Release\net8.0\CelestialMechanics.Math.dll
+  CelestialMechanics.Physics -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Physics\bin\Release\net8.0\CelestialMechanics.Physics.dll
+  CelestialMechanics.Simulation -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Simulation\bin\Release\net8.0\CelestialMechanics.Simulation.dll
+  CelestialMechanics.Data -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Data\bin\Release\net8.0\CelestialMechanics.Data.dll
+  CelestialMechanics.AppCore -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.AppCore\bin\Release\net8.0\CelestialMechanics.AppCore.dll
+  CelestialMechanics.Renderer -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Renderer\bin\Release\net8.0\CelestialMechanics.Renderer.dll
+  CelestialMechanics.Desktop -> C:\sharon\projects\celestial-mechanics-desktop\src\CelestialMechanics.Desktop\bin\Release\net8.0-windows\win-x64\CelestialMechanics.Desktop.dll
+  CelestialMechanics.Desktop -> C:\sharon\projects\celestial-mechanics-desktop\publish_new\

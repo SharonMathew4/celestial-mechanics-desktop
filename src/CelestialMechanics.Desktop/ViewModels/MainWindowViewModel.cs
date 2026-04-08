@@ -128,6 +128,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     /// <summary>Scale factor for converting cursor distance to velocity magnitude.</summary>
     private const float VelocityScaleFactor = 0.5f;
 
+    /// <summary>Maximum number of celestial bodies allowed in the simulation.</summary>
+    private const int MaxBodies = 15;
+
     // ── Time Scale (Time Flow Slider) ────────────────────────────────
 
     [ObservableProperty]
@@ -622,11 +625,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// Confirms velocity and places the body in the simulation.
-    /// Called when user second-clicks during ChoosingVelocity.
+    /// Called when user left-clicks during ChoosingVelocity.
     /// </summary>
     public void ConfirmVelocityAndPlace()
     {
         if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+
+        // ── Max body limit check ──
+        bool limitReached = false;
+        _simService.WithEngineLock(engine =>
+        {
+            if ((engine.Bodies?.Length ?? 0) >= MaxBodies)
+                limitReached = true;
+        });
+        if (limitReached)
+        {
+            System.Windows.MessageBox.Show(
+                "Maximum object limit reached. Delete an existing object.",
+                "Object Limit",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
 
         var placedPos = new Vec3d(PlacedX, PlacedY, PlacedZ);
         var cursorPos = new Vec3d(VelocityEndX, VelocityEndY, VelocityEndZ);
@@ -645,6 +665,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         });
 
         _sceneService.RepopulateFromSimulation(_simService);
+        SceneOutlinerVm.Refresh();
 
         // Return to ChoosingPosition for continuous placement
         PlacementPhase = PlacementPhase.ChoosingPosition;
@@ -658,6 +679,23 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public void PlaceWithZeroVelocity()
     {
         if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+
+        // ── Max body limit check ──
+        bool limitReached = false;
+        _simService.WithEngineLock(engine =>
+        {
+            if ((engine.Bodies?.Length ?? 0) >= MaxBodies)
+                limitReached = true;
+        });
+        if (limitReached)
+        {
+            System.Windows.MessageBox.Show(
+                "Maximum object limit reached. Delete an existing object.",
+                "Object Limit",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+            return;
+        }
 
         var placedPos = new Vec3d(PlacedX, PlacedY, PlacedZ);
 
@@ -674,6 +712,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         });
 
         _sceneService.RepopulateFromSimulation(_simService);
+        SceneOutlinerVm.Refresh();
 
         // Return to ChoosingPosition for continuous placement
         PlacementPhase = PlacementPhase.ChoosingPosition;
@@ -778,7 +817,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Called by ViewportPanel when user right-clicks to deselect/cancel placement.
+    /// Called by ViewportPanel when user presses Escape to cancel placement entirely.
     /// </summary>
     public void CancelPlacement()
     {
@@ -790,6 +829,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             CurrentMode = UiMode.Idle;
             ClearRendererPreview();
         }
+    }
+
+    /// <summary>
+    /// Cancels the velocity phase and returns to position choosing.
+    /// Called by ViewportPanel when user right-clicks during ChoosingVelocity.
+    /// </summary>
+    public void CancelVelocityPhase()
+    {
+        if (PlacementPhase != PlacementPhase.ChoosingVelocity) return;
+        PlacementPhase = PlacementPhase.ChoosingPosition;
+        ClearRendererPreview();
     }
 
     /// <summary>Returns a sensible default radius for each body type (in AU).</summary>
@@ -1054,6 +1104,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             UpdateRenderMetrics(ActiveRenderLoop.CurrentFps, ActiveRenderLoop.LastRenderTimeMs);
         }
+
+        // Live-update inspector values during simulation
+        BodyInspectorVm.RefreshIfSelected();
     }
 
     /// <summary>

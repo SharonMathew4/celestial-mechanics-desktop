@@ -19,6 +19,18 @@ public class RenderState
     public int BodyCount { get; set; }
     public float InterpolationAlpha { get; set; }
 
+    // ── Collision event tracking ───────────────────────────────────────────
+    // Bodies that disappeared between frames indicate a collision/merge
+    private readonly HashSet<int> _previousBodyIds = new();
+    private readonly HashSet<int> _currentBodyIds  = new();
+    private readonly Dictionary<int, Vector3> _lastKnownPositions = new();
+
+    /// <summary>
+    /// Positions where a collision was detected this frame.
+    /// Read by GLRenderer on the render thread (same thread as UpdateFrom).
+    /// </summary>
+    public List<Vector3> NewCollisionPositions { get; } = new();
+
     // ── Phase 6: Black hole tracking for lensing ──────────────────────────
     public Vector3[] BlackHolePositions { get; set; } = new Vector3[8];
     public float[] BlackHoleMasses { get; set; } = new float[8];
@@ -26,16 +38,31 @@ public class RenderState
 
     public void UpdateFrom(SimulationEngine engine)
     {
+        NewCollisionPositions.Clear();
+
         var physicsBodies = engine.Bodies;
         if (physicsBodies == null || physicsBodies.Length == 0)
         {
+            // All bodies gone — if some were present before, register collisions
+            foreach (var kvp in _lastKnownPositions)
+                NewCollisionPositions.Add(kvp.Value);
+
             BodyCount = 0;
             BlackHoleCount = 0;
+            _previousBodyIds.Clear();
+            _currentBodyIds.Clear();
+            _lastKnownPositions.Clear();
             return;
         }
 
         if (Bodies.Length < physicsBodies.Length)
             Bodies = new RenderBody[physicsBodies.Length];
+
+        // Swap ID sets
+        _previousBodyIds.Clear();
+        foreach (var id in _currentBodyIds)
+            _previousBodyIds.Add(id);
+        _currentBodyIds.Clear();
 
         int activeCount = 0;
         int bhCount = 0;
@@ -51,34 +78,47 @@ public class RenderState
 
             Bodies[activeCount++] = new RenderBody
             {
-                Id = body.Id,
+                Id       = body.Id,
                 Position = pos,
-                Radius = MathF.Max(0.01f, (float)body.Radius),
-                Color = GetBodyColor(body.Type),
+                Radius   = MathF.Max(0.01f, (float)body.Radius),
+                Color    = GetBodyColor(body.Type),
                 BodyType = (int)body.Type
             };
+
+            _currentBodyIds.Add(body.Id);
+            _lastKnownPositions[body.Id] = pos;
 
             // Track black holes for lensing (max 8)
             if (body.Type == BodyType.BlackHole && bhCount < 8)
             {
                 BlackHolePositions[bhCount] = pos;
-                BlackHoleMasses[bhCount] = (float)body.Mass;
+                BlackHoleMasses[bhCount]    = (float)body.Mass;
                 bhCount++;
             }
         }
-        BodyCount = activeCount;
+        BodyCount    = activeCount;
         BlackHoleCount = bhCount;
+
+        // Detect disappeared bodies → collision events
+        foreach (var id in _previousBodyIds)
+        {
+            if (!_currentBodyIds.Contains(id) && _lastKnownPositions.TryGetValue(id, out var colPos))
+            {
+                NewCollisionPositions.Add(colPos);
+                _lastKnownPositions.Remove(id);
+            }
+        }
     }
 
     private static Vector4 GetBodyColor(BodyType type) => type switch
     {
-        BodyType.Star => new Vector4(1.0f, 0.9f, 0.3f, 1.0f),
-        BodyType.Planet or BodyType.RockyPlanet => new Vector4(0.2f, 0.4f, 0.8f, 1.0f),
-        BodyType.GasGiant => new Vector4(0.8f, 0.7f, 0.5f, 1.0f),
-        BodyType.Moon => new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
-        BodyType.Asteroid or BodyType.Comet => new Vector4(0.5f, 0.5f, 0.4f, 1.0f),
-        BodyType.NeutronStar => new Vector4(0.5f, 0.8f, 1.0f, 1.0f),
-        BodyType.BlackHole => new Vector4(0.1f, 0.0f, 0.1f, 0.7f), // Darker, slightly transparent
-        _ => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),
+        BodyType.Star                              => new Vector4(1.0f, 0.9f, 0.3f, 1.0f),
+        BodyType.Planet or BodyType.RockyPlanet   => new Vector4(0.2f, 0.4f, 0.8f, 1.0f),
+        BodyType.GasGiant                          => new Vector4(0.8f, 0.7f, 0.5f, 1.0f),
+        BodyType.Moon                              => new Vector4(0.7f, 0.7f, 0.7f, 1.0f),
+        BodyType.Asteroid or BodyType.Comet        => new Vector4(0.5f, 0.5f, 0.4f, 1.0f),
+        BodyType.NeutronStar                       => new Vector4(0.5f, 0.8f, 1.0f, 1.0f),
+        BodyType.BlackHole                         => new Vector4(0.1f, 0.0f, 0.1f, 0.7f),
+        _                                          => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),
     };
 }

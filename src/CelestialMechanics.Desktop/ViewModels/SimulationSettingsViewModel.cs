@@ -50,7 +50,7 @@ public sealed partial class SimulationSettingsViewModel : ObservableObject
 
     // ── Physics ────────────────────────────────────────────────────
     [ObservableProperty]
-    private bool _enableCollisions;
+    private bool _enableCollisions = true;
 
     [ObservableProperty]
     private bool _useAdaptiveTimestep;

@@ -51,7 +51,7 @@ public sealed class NativeGpuPhysicsBackend : IPhysicsComputeBackend, IDisposabl
             _capacity = 0;
         }
 
-        int rc = NativePhysicsInterop.Init(Math.Max(requiredCount, 16));
+        int rc = NativePhysicsInterop.Init(System.Math.Max(requiredCount, 16));
         if (rc != 0)
         {
             string details = NativePhysicsInterop.GetLastErrorMessage() ?? "unknown native initialization error";
@@ -61,7 +61,7 @@ public sealed class NativeGpuPhysicsBackend : IPhysicsComputeBackend, IDisposabl
         // 2 = GPU_BruteForce (native API contract)
         NativePhysicsInterop.SetComputeMode(2);
         _initialized = true;
-        _capacity = Math.Max(requiredCount, 16);
+        _capacity = System.Math.Max(requiredCount, 16);
     }
 
     public void Dispose()

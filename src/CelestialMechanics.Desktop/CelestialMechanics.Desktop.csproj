@@ -9,6 +9,24 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>CelestialMechanics.Desktop</RootNamespace>
     <AssemblyName>CelestialMechanics.Desktop</AssemblyName>
+    
+    <!-- Application Icon - will be embedded in exe -->
+    <ApplicationIcon Condition="Exists('app.ico')">app.ico</ApplicationIcon>
+    
+    <!-- Assembly Information -->
+    <Product>Celestial Mechanics</Product>
+    <Company>Celestial Mechanics Project</Company>
+    <Description>A 3D celestial mechanics simulation application</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    
+    <!-- Publishing Configuration for Single-File EXE -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
 
   <ItemGroup>

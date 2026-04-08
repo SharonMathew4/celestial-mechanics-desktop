@@ -105,26 +105,77 @@ public partial class ViewportPanel : UserControl
         }
     }
 
-    // ── Keyboard Polling (WASD / QE) ────────────────────────────────
+    // ── Keyboard Polling (WASD / QE + Arrow Keys) ────────────────────
 
     private void OnKeyboardPoll(object? sender, EventArgs e)
     {
-        if (_renderer == null || (!IsFocused && !IsKeyboardFocusWithin)) return;
+        if (_renderer == null) return;
 
-        const float dt = 0.016f; // ~60fps
+        // Keyboard input requires focus
+        if (IsFocused || IsKeyboardFocusWithin)
+        {
+            const float dt = 0.016f; // ~60fps
+            bool shiftHeld = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
 
-        if (Keyboard.IsKeyDown(Key.W))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Forward, dt);
-        if (Keyboard.IsKeyDown(Key.S) && !Keyboard.IsKeyDown(Key.LeftCtrl))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Backward, dt);
-        if (Keyboard.IsKeyDown(Key.A))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
-        if (Keyboard.IsKeyDown(Key.D))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
-        if (Keyboard.IsKeyDown(Key.Q))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Down, dt);
-        if (Keyboard.IsKeyDown(Key.E))
-            _renderer.Camera.ProcessKeyboard(CameraMovement.Up, dt);
+            // WASD controls (classic 3D viewport)
+            if (Keyboard.IsKeyDown(Key.W))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Forward, dt);
+            if (Keyboard.IsKeyDown(Key.S) && !Keyboard.IsKeyDown(Key.LeftCtrl))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Backward, dt);
+            if (Keyboard.IsKeyDown(Key.A))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
+            if (Keyboard.IsKeyDown(Key.D))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
+            if (Keyboard.IsKeyDown(Key.Q))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Down, dt);
+            if (Keyboard.IsKeyDown(Key.E))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Up, dt);
+
+            // Arrow key controls (per spec)
+            if (Keyboard.IsKeyDown(Key.Up))
+                _renderer.Camera.ProcessKeyboard(shiftHeld ? CameraMovement.Up : CameraMovement.Forward, dt);
+            if (Keyboard.IsKeyDown(Key.Down))
+                _renderer.Camera.ProcessKeyboard(shiftHeld ? CameraMovement.Down : CameraMovement.Backward, dt);
+            if (Keyboard.IsKeyDown(Key.Left))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
+            if (Keyboard.IsKeyDown(Key.Right))
+                _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
+        }
+
+        // Ghost placement polling — works even when HwndHost swallows MouseMove
+        PollPlacementGhostPosition();
+    }
+
+    /// <summary>
+    /// Polls the current mouse position and updates the ghost body or velocity
+    /// endpoint during placement mode. This is needed because the native OpenGL
+    /// HWND child absorbs WM_MOUSEMOVE and WPF's MouseMove routed event doesn't
+    /// fire on this control when no mouse button is pressed.
+    /// </summary>
+    private void PollPlacementGhostPosition()
+    {
+        if (ViewModel == null || !ViewModel.IsPlacingObject || _renderer == null) return;
+
+        // Mouse.GetPosition uses Win32 GetCursorPos internally — works regardless of HwndHost
+        var pos = Mouse.GetPosition(this);
+
+        // Only update if cursor is within the viewport bounds
+        if (pos.X < 0 || pos.Y < 0 || pos.X > ActualWidth || pos.Y > ActualHeight) return;
+
+        var (worldX, worldY, worldZ) = ScreenToWorldXZPlane(pos);
+
+        if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
+        {
+            ViewModel.UpdateGhostPosition(worldX, worldY, worldZ);
+            if (Cursor != Cursors.Cross)
+                Cursor = Cursors.Cross;
+        }
+        else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+        {
+            ViewModel.UpdateVelocityEndpoint(worldX, worldY, worldZ);
+            if (Cursor != Cursors.ScrollAll)
+                Cursor = Cursors.ScrollAll;
+        }
     }
 
     // ── Keyboard Events ─────────────────────────────────────────────
@@ -356,19 +407,13 @@ public partial class ViewportPanel : UserControl
 
         if (ViewModel.IsPlacingObject)
         {
-            // Two-step placement flow
-            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
+            // Left-click finalizes: confirm velocity and place the body
+            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
             {
-                // First click: confirm position
-                ViewModel.ConfirmPosition();
-                Cursor = Cursors.ScrollAll; // Change cursor for velocity phase
-            }
-            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
-            {
-                // Second click: confirm velocity and place
                 ViewModel.ConfirmVelocityAndPlace();
                 Cursor = Cursors.Cross; // Back to position cursor
             }
+            // Left-click during ChoosingPosition is a no-op (use right-click to fix position)
         }
         else
         {
@@ -417,15 +462,28 @@ public partial class ViewportPanel : UserControl
         }
     }
 
-    /// <summary>Right click (no drag): cancel placement, open context menu, or deselect.</summary>
+    /// <summary>
+    /// Right click (no drag): during placement fixes position or cancels;
+    /// otherwise opens context menu or deselects.
+    /// </summary>
     private void HandleRightClick(Point screenPos)
     {
         if (ViewModel == null || _renderer == null) return;
 
         if (ViewModel.IsPlacingObject)
         {
-            ViewModel.CancelPlacement();
-            UpdateCursorForMode();
+            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
+            {
+                // Right-click during position selection: fix ghost position
+                ViewModel.ConfirmPosition();
+                Cursor = Cursors.ScrollAll; // Change cursor for velocity phase
+            }
+            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+            {
+                // Right-click during velocity selection: cancel back to position phase
+                ViewModel.CancelVelocityPhase();
+                Cursor = Cursors.Cross;
+            }
             return;
         }
 
