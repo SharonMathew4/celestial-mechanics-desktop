@@ -3,5 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Focusable="True"
              Background="Transparent">
-    <Grid x:Name="HostContainer"/>
+    <Grid>
+        <Grid x:Name="HostContainer"/>
+        <!-- Transparent overlay ensures mouse/keyboard input stays in WPF even when rendering through HwndHost -->
+        <Border x:Name="InputOverlay" Background="Transparent" Focusable="True"/>
+    </Grid>
 </UserControl>

@@ -1,23 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\CelestialMechanics.Renderer\CelestialMechanics.Renderer.csproj" />
-    <ProjectReference Include="..\CelestialMechanics.Simulation\CelestialMechanics.Simulation.csproj" />
-    <ProjectReference Include="..\CelestialMechanics.Data\CelestialMechanics.Data.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="ImGui.NET" Version="1.91.6.1" />
-    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+    <ProjectReference Include="..\CelestialMechanics.Desktop\CelestialMechanics.Desktop.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>CelestialMechanics.AppLauncher</RootNamespace>
+    <AssemblyName>CelestialMechanics.AppLauncher</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>

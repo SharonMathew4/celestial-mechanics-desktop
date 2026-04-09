@@ -20,13 +20,8 @@
     <Version>1.0.0</Version>
     <FileVersion>1.0.0.0</FileVersion>
     
-    <!-- Publishing Configuration for Single-File EXE -->
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishTrimmed>false</PublishTrimmed>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Keep project buildable as a referenced desktop assembly.
+         Publish-specific flags are passed via dotnet publish command. -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -42,6 +37,12 @@
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
   </ItemGroup>
+
+  <!-- Pre-publish target to detect and kill the running process to prevent MSB4018 -->
+  <Target Name="KillRunningApp" BeforeTargets="PrepareForPublish">
+    <Message Importance="high" Text="Checking for running instances of $(AssemblyName).exe to prevent file locks..." />
+    <Exec Command="powershell -NoProfile -Command &quot;try { Stop-Process -Name $(AssemblyName) -Force -ErrorAction SilentlyContinue } catch { } exit 0&quot;" Condition="'$(OS)' == 'Windows_NT'" ContinueOnError="true" />
+  </Target>
 
   <!-- Copy shaders from Renderer project to output directory -->
   <ItemGroup>

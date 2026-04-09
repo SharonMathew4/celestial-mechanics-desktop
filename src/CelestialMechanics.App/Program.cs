@@ -1,30 +1,16 @@
-using Silk.NET.Maths;
-using Silk.NET.Windowing;
-
+using System;
+using System.Windows;
 namespace CelestialMechanics.App;
 
 public static class Program
 {
+    [STAThread]
     public static void Main(string[] args)
     {
-        var options = WindowOptions.Default with
-        {
-            Size = new Vector2D<int>(1600, 900),
-            Title = "Celestial Mechanics — Scientific Simulation Engine",
-            API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, new APIVersion(3, 3)),
-            VSync = true,
-            ShouldSwapAutomatically = true,
-        };
-
-        var window = Window.Create(options);
-        var app = new Application(window);
-
-        window.Load += app.OnLoad;
-        window.Update += app.OnUpdate;
-        window.Render += app.OnRender;
-        window.Closing += app.OnClose;
-        window.Resize += app.OnResize;
-
-        window.Run();
+        var app = new global::CelestialMechanics.Desktop.App();
+        app.InitializeComponent();
+        var mainWindow = new global::CelestialMechanics.Desktop.Views.MainWindow();
+        app.MainWindow = mainWindow;
+        app.Run(mainWindow);
     }
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CelestialMechanics.AppCore.Scene;
 using CelestialMechanics.Desktop.Models;
 using CelestialMechanics.Desktop.Services;
 using CelestialMechanics.Desktop.Infrastructure;
@@ -165,6 +166,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _simulationStateText = "Idle";
 
+    [ObservableProperty]
+    private string _runtimeModeText = "Runtime: WPF Desktop (shared engine)";
+
     // ── Toolbar Toggles ──────────────────────────────────────────────
 
     [ObservableProperty]
@@ -303,13 +307,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         CurrentProject = project;
         WindowTitle = $"Celestial Mechanics \u2014 {project.Name}";
 
-        // Do not auto-load presets. Keep whatever scene the project currently has
-        // (new projects start empty; loaded projects keep their saved bodies).
+        if (!TryLoadProjectState(project))
+        {
+            SeedDefaultScenarioForProject(project);
+        }
+
         _sceneService.RepopulateFromSimulation(_simService);
 
         // Start simulation engine and UI timer
         _simService.StartSimThread();
-        _simService.Play();  // BUG 1 FIX: Auto-start so bodies orbit immediately
+        _simService.Play();
         _renderer.ClearTrails();
         _uiTimer.Start();
 
@@ -319,8 +326,90 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         // Reset camera to a good default view
         _renderer.Camera.ResetToDefault();
 
-        // Refresh outliner
+        BodyInspectorVm.ClearSelection();
         SceneOutlinerVm.Refresh();
+    }
+
+    private bool TryLoadProjectState(ProjectInfo project)
+    {
+        var statePath = Path.Combine(project.Path, "simulation_state.json");
+        if (!File.Exists(statePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(statePath);
+            var state = JsonSerializer.Deserialize<SimulationSaveState>(json);
+            if (state == null)
+            {
+                return false;
+            }
+
+            _simService.WithEngineLock(engine =>
+            {
+                engine.Stop();
+
+                var bodies = state.Bodies.Select(b => new PhysicsBody(
+                    b.Id,
+                    mass: b.Mass,
+                    position: new Vec3d(b.PositionX, b.PositionY, b.PositionZ),
+                    velocity: new Vec3d(b.VelocityX, b.VelocityY, b.VelocityZ),
+                    type: b.Type)
+                {
+                    Radius = b.Radius,
+                    Density = b.Density,
+                    IsActive = b.IsActive,
+                    IsCollidable = b.IsCollidable,
+                }).ToArray();
+                engine.SetBodies(bodies);
+
+                var c = state.Config;
+                engine.Config.IntegratorName = c.IntegratorName;
+                engine.Config.TimeStep = c.TimeStep;
+                engine.Config.MinDt = c.MinDt;
+                engine.Config.MaxDt = c.MaxDt;
+                engine.Config.DeterministicMode = c.DeterministicMode;
+                engine.Config.UseParallelComputation = c.UseParallelComputation;
+                engine.Config.UseSimd = c.UseSimd;
+                engine.Config.UseSoAPath = c.UseSoAPath;
+                engine.Config.UseBarnesHut = c.UseBarnesHut;
+                engine.Config.Theta = c.Theta;
+                engine.Config.EnableCollisions = c.EnableCollisions;
+                engine.Config.UseAdaptiveTimestep = c.UseAdaptiveTimestep;
+                engine.Config.EnablePostNewtonian = c.EnablePostNewtonian;
+                engine.Config.EnableGravitationalLensing = c.EnableGravitationalLensing;
+                engine.Config.EnableAccretionDisks = c.EnableAccretionDisks;
+                engine.Config.EnableGravitationalWaves = c.EnableGravitationalWaves;
+                engine.Config.EnableJetEmission = c.EnableJetEmission;
+                engine.Config.SofteningEpsilon = c.SofteningEpsilon;
+                if (Enum.TryParse<SofteningMode>(c.SofteningMode, out var sm))
+                {
+                    engine.Config.SofteningMode = sm;
+                }
+
+                engine.ApplyConfig();
+            });
+
+            _simService.SetIntegrator(state.Config.IntegratorName);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void SeedDefaultScenarioForProject(ProjectInfo project)
+    {
+        _simService.WithEngineLock(engine =>
+        {
+            engine.Stop();
+            engine.SetBodies(DefaultSimulationScenario.CreateTwoBodyOrbit());
+        });
+
+        SaveProjectState(project);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -358,48 +447,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             var state = JsonSerializer.Deserialize<SimulationSaveState>(json);
             if (state == null) return;
 
-            _simService.WithEngineLock(engine =>
-            {
-                engine.Stop();
-
-                var bodies = state.Bodies.Select(b => new PhysicsBody(
-                    b.Id,
-                    mass: b.Mass,
-                    position: new Vec3d(b.PositionX, b.PositionY, b.PositionZ),
-                    velocity: new Vec3d(b.VelocityX, b.VelocityY, b.VelocityZ),
-                    type: b.Type)
-                {
-                    IsActive = b.IsActive,
-                    IsCollidable = b.IsCollidable,
-                }).ToArray();
-                engine.SetBodies(bodies);
-
-                // Apply saved config
-                var c = state.Config;
-                engine.Config.IntegratorName = c.IntegratorName;
-                engine.Config.TimeStep = c.TimeStep;
-                engine.Config.MinDt = c.MinDt;
-                engine.Config.MaxDt = c.MaxDt;
-                engine.Config.DeterministicMode = c.DeterministicMode;
-                engine.Config.UseParallelComputation = c.UseParallelComputation;
-                engine.Config.UseSimd = c.UseSimd;
-                engine.Config.UseSoAPath = c.UseSoAPath;
-                engine.Config.UseBarnesHut = c.UseBarnesHut;
-                engine.Config.Theta = c.Theta;
-                engine.Config.EnableCollisions = c.EnableCollisions;
-                engine.Config.UseAdaptiveTimestep = c.UseAdaptiveTimestep;
-                engine.Config.EnablePostNewtonian = c.EnablePostNewtonian;
-                engine.Config.EnableGravitationalLensing = c.EnableGravitationalLensing;
-                engine.Config.EnableAccretionDisks = c.EnableAccretionDisks;
-                engine.Config.EnableGravitationalWaves = c.EnableGravitationalWaves;
-                engine.Config.EnableJetEmission = c.EnableJetEmission;
-                engine.Config.SofteningEpsilon = c.SofteningEpsilon;
-                if (Enum.TryParse<SofteningMode>(c.SofteningMode, out var sm))
-                    engine.Config.SofteningMode = sm;
-                engine.ApplyConfig();
-            });
-
-            _simService.SetIntegrator(state.Config.IntegratorName);
+            ApplySimulationState(state);
             _sceneService.RepopulateFromSimulation(_simService);
             SceneOutlinerVm.Refresh();
             BodyInspectorVm.ClearSelection();
@@ -414,8 +462,68 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void Save()
     {
         if (CurrentProject == null) return;
+        SaveProjectState(CurrentProject);
+    }
 
-        var statePath = Path.Combine(CurrentProject.Path, "simulation_state.json");
+    [RelayCommand]
+    private void Exit()
+    {
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    private void ApplySimulationState(SimulationSaveState state)
+    {
+        _simService.WithEngineLock(engine =>
+        {
+            engine.Stop();
+
+            var bodies = state.Bodies.Select(b => new PhysicsBody(
+                b.Id,
+                mass: b.Mass,
+                position: new Vec3d(b.PositionX, b.PositionY, b.PositionZ),
+                velocity: new Vec3d(b.VelocityX, b.VelocityY, b.VelocityZ),
+                type: b.Type)
+            {
+                Radius = b.Radius,
+                Density = b.Density,
+                IsActive = b.IsActive,
+                IsCollidable = b.IsCollidable,
+            }).ToArray();
+            engine.SetBodies(bodies);
+
+            var c = state.Config;
+            engine.Config.IntegratorName = c.IntegratorName;
+            engine.Config.TimeStep = c.TimeStep;
+            engine.Config.MinDt = c.MinDt;
+            engine.Config.MaxDt = c.MaxDt;
+            engine.Config.DeterministicMode = c.DeterministicMode;
+            engine.Config.UseParallelComputation = c.UseParallelComputation;
+            engine.Config.UseSimd = c.UseSimd;
+            engine.Config.UseSoAPath = c.UseSoAPath;
+            engine.Config.UseBarnesHut = c.UseBarnesHut;
+            engine.Config.Theta = c.Theta;
+            engine.Config.EnableCollisions = c.EnableCollisions;
+            engine.Config.UseAdaptiveTimestep = c.UseAdaptiveTimestep;
+            engine.Config.EnablePostNewtonian = c.EnablePostNewtonian;
+            engine.Config.EnableGravitationalLensing = c.EnableGravitationalLensing;
+            engine.Config.EnableAccretionDisks = c.EnableAccretionDisks;
+            engine.Config.EnableGravitationalWaves = c.EnableGravitationalWaves;
+            engine.Config.EnableJetEmission = c.EnableJetEmission;
+            engine.Config.SofteningEpsilon = c.SofteningEpsilon;
+            if (Enum.TryParse<SofteningMode>(c.SofteningMode, out var sm))
+            {
+                engine.Config.SofteningMode = sm;
+            }
+
+            engine.ApplyConfig();
+        });
+
+        _simService.SetIntegrator(state.Config.IntegratorName);
+    }
+
+    private void SaveProjectState(ProjectInfo project)
+    {
+        var statePath = Path.Combine(project.Path, "simulation_state.json");
 
         _simService.WithEngineLock(engine =>
         {
@@ -468,12 +576,6 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(statePath, json);
         });
-    }
-
-    [RelayCommand]
-    private void Exit()
-    {
-        System.Windows.Application.Current.Shutdown();
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1103,6 +1205,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (ActiveRenderLoop?.IsInitialized == true)
         {
             UpdateRenderMetrics(ActiveRenderLoop.CurrentFps, ActiveRenderLoop.LastRenderTimeMs);
+        }
+        else if (ActiveRenderLoop?.LastError != null)
+        {
+            FpsText = "FPS: ERR";
+            RenderTimeText = "Render: ERR";
         }
 
         // Live-update inspector values during simulation

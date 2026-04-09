@@ -9,7 +9,7 @@
          ═══════════════════════════════════════════════════════════════ -->
 
     <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/Themes/SpaceDarkTheme.xaml"/>
+        <ResourceDictionary Source="/CelestialMechanics.Desktop;component/Themes/SpaceDarkTheme.xaml"/>
     </ResourceDictionary.MergedDictionaries>
 
     <!-- ── Additional Cinematic Colors ─────────────────────────────── -->

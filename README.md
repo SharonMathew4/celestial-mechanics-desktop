@@ -1,98 +1,38 @@
-# Celestial Mechanics Desktop 🌌
+# Celestial Mechanics Desktop
 
-Welcome to **Celestial Mechanics Desktop**, a high-performance 3D gravitational physics simulation engine and interactive desktop application. 
+## Detailed Execution Problem Report
 
-This project allows users to simulate, visualize, and interact with complex orbital mechanics, N-body physics, relativistic effects, and real-time accretion disk formations natively on Windows.
+A very detailed report has been prepared here:
 
-## 🚀 Features
+- `EXECUTION_PROBLEM_REPORT.md`
 
-- **N-Body Gravity Simulation:** High-performance, deterministic simulation capable of handling thousands of interacting bodies.
-- **Hardware Acceleration:** Pluggable physics backends, including SIMD Single-Threaded, Multi-Threaded, and Native GPU/CUDA backends for massive scale simulations.
-- **Interactive 3D Viewport:** Advanced camera controls (pan/orbit/zoom), interactive body placement, and real-time gravitational lens rendering.
-- **Relativistic Physics:** Barnes-Hut O(n log n) tree implementations and Post-Newtonian corrections for high-accuracy simulations.
-- **Extensible Architecture:** Designed with maintainability in mind using Modern C# / .NET 7+. 
+The report includes:
 
----
+1. Full root-cause analysis of the publish failure.
+2. Evidence from `publish_log.txt`, `publish_log2.txt`, and build script behavior.
+3. Reproduction steps for both failure and success scenarios.
+4. Process-level diagnostics and lock troubleshooting commands.
+5. Immediate mitigation, long-term hardening, and team workflow recommendations.
 
-## 🛠️ Tech Stack & Prerequisites
+## Problem Summary (Short Version)
 
-Before you can build and run this application locally, ensure you have the following installed:
+The failing symptom is a publish-time lock conflict:
 
-- **[.NET 7 SDK](https://dotnet.microsoft.com/download/dotnet/7.0)** (or later, if configured in `global.json`)
-- **[Git](https://git-scm.com/downloads)**
-- **[Visual Studio 2022](https://visualstudio.microsoft.com/vs/)** (Recommended) with the **".NET desktop development"** workload.
-- **C++ Build Tools / CUDA Toolkit** (Optional, required only if you are building the native hardware-accelerated backend locally).
+1. `dotnet publish` reaches `GenerateBundle`.
+2. Destination file `publish\CelestialMechanics.Desktop.exe` is still in use by a running process.
+3. MSBuild surfaces error `MSB4018` with an inner `System.IO.IOException` for file-in-use.
 
----
+This is not a source compilation issue; it is an execution-state issue.
 
-## 💻 Local Setup strictly for Collaborators
+## Troubleshooting MSB4018 Lock Issues
 
-Follow these instructions to clone, build, and run the project strictly via the command line or Visual Studio.
+If you encounter `MSB4018` or `System.IO.IOException` during `dotnet publish`, it is very likely an execution lock because the app is already running.
 
-### 1. Clone the Repository
+| Symptom / Error | Common Cause | Action / Resolution |
+| :--- | :--- | :--- |
+| **`MSB4018`** on `GenerateBundle` | `publish\CelestialMechanics.Desktop.exe` is currently running | **Close the app**, then publish again. |
+| Publish fails silently  | The app window is closed, but the process hangs | Run `.\detect_lock.ps1` to find ghost processes. |
+| Cannot close the app | The simulation thread is stuck in an infinite loop | Run `Stop-Process -Name CelestialMechanics.Desktop -Force`. |
+| Need a rapid local dev loop | Manual closing takes time | Use `.\publish.ps1 -UseTimestampFolder` to publish to a fresh output folder (e.g. `publish_20260409_165030`). |
 
-```powershell
-git clone https://github.com/<username>/celestial-mechanics-desktop.git
-cd celestial-mechanics-desktop
-```
-
-### 2. Restore Dependencies
-
-Use the .NET CLI to restore all required NuGet packages for the solution:
-
-```powershell
-dotnet restore
-```
-
-*(Note: Ensure you have network access to standard NuGet package sources. If any C++ native interop issues arise, ensure you have your MSVC tools correctly installed.)*
-
-### 3. Build the Solution
-
-Build the entire solution in Debug mode (default):
-
-```powershell
-dotnet build
-```
-
-*For maximum performance during testing, you can build in Release mode:*
-```powershell
-dotnet build -c Release
-```
-
-### 4. Run the Application
-
-The main entry point is the WPF Desktop Application (`CelestialMechanics.App`). You can launch it using:
-
-```powershell
-dotnet run --project src/CelestialMechanics.App/CelestialMechanics.App.csproj
-```
-
-Alternatively, you can open `CelestialMechanics.sln` in **Visual Studio 2022**, set `CelestialMechanics.App` as the **Startup Project**, and press `F5` to debug.
-
----
-
-## 🧪 Running Tests
-
-We strictly enforce deterministic tests, math accuracy, and physical correctness across our solvers. To run the full suite of unit and integration tests:
-
-```powershell
-dotnet test
-```
-
-Please ensure all tests pass (especially `DeterminismTests` and `SIMDParityTests`) before submitting a Pull Request!
-
----
-
-## 🤝 Contribution Guidelines
-
-- **Branching:** Please branch off `main` for any new feature or bugfix (e.g., `feature/barnes-hut-optimization` or `fix/camera-viewport`).
-- **Code Style:** We follow standard Microsoft C# naming conventions. Keep your commits atomic.
-- **Check-ins:** Ensure you do not accidentally commit generated folders such as `bin/`, `obj/`, `.vs/`, or huge test dump files.
-- **Pull Requests:** All PRs will undergo a code review and automated checks for determinism regression.
-
-## 📄 License
-
-*(Insert your chosen license here, e.g., MIT, GPL-3.0, or Proprietary if closed-source.)*
-
----
-*If you run into issues such as `System.DllNotFoundException` for `OpenTK` or native interop, ensure you have the latest Visual C++ Redistributable installed.*
+**Note**: The `.csproj` has been updated to automatically terminate existing `CelestialMechanics.Desktop.exe` instances during publish natively. If you use the standard VS Code Publish tasks or `.\publish.ps1`, the lock handling and termination should be completely automatic!

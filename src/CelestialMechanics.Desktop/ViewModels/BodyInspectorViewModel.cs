@@ -218,34 +218,20 @@ public sealed partial class BodyInspectorViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Refreshes position/velocity/mass for the currently selected body.
-    /// Called from UI timer at 20Hz for live updates during simulation.
-    /// Does NOT change selection state or recompute orbital elements (for performance).
+    /// Reloads the selected body values so the inspector stays in sync while the simulation runs.
     /// </summary>
     public void RefreshIfSelected()
     {
-        if (_currentBodyId == null || !HasSelection) return;
-        int id = _currentBodyId.Value;
-
-        _simService.WithEngineLock(engine =>
+        if (_currentBodyId == null)
         {
-            if (engine.Bodies == null) return;
-            for (int i = 0; i < engine.Bodies.Length; i++)
-            {
-                if (engine.Bodies[i].Id != id) continue;
-                ref var body = ref engine.Bodies[i];
-                PositionX = body.Position.X;
-                PositionY = body.Position.Y;
-                PositionZ = body.Position.Z;
-                VelocityX = body.Velocity.X;
-                VelocityY = body.Velocity.Y;
-                VelocityZ = body.Velocity.Z;
-                Mass = body.Mass;
-                Radius = body.Radius;
-                IsActive = body.IsActive;
-                break;
-            }
-        });
+            return;
+        }
+
+        var nodeId = _sceneService.GetNodeIdForBody(_currentBodyId.Value);
+        if (nodeId.HasValue)
+        {
+            LoadBody(nodeId.Value);
+        }
     }
 
     [RelayCommand]

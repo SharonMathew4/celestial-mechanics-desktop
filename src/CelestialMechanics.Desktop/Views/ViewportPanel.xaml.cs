@@ -26,6 +26,7 @@ namespace CelestialMechanics.Desktop.Views;
 /// </summary>
 public partial class ViewportPanel : UserControl
 {
+    private Window? _rootWindow;
     private OpenGLHost? _glHost;
     private RenderLoop? _renderLoop;
     private GLRenderer? _renderer;
@@ -46,6 +47,8 @@ public partial class ViewportPanel : UserControl
     // Keyboard input polling timer
     private DispatcherTimer? _keyboardTimer;
     private DateTime _lastDoubleClick = DateTime.MinValue;
+    private bool _renderFaultHandled;
+    private bool _viewportInputActive;
 
     public RenderLoop? RenderLoop => _renderLoop;
 
@@ -68,13 +71,31 @@ public partial class ViewportPanel : UserControl
         // Create the HwndHost (this triggers BuildWindowCore and WGL context creation)
         _glHost = new OpenGLHost();
         HostContainer.Children.Add(_glHost);
+        _glHost.Focusable = true;
 
-        // Wire mouse events on this control (not on the HwndHost, since it swallows input)
+        // Wire input events on both wrapper control and host. Depending on focus/window message
+        // routing, input may arrive on either surface.
         MouseDown += OnViewportMouseDown;
         MouseUp += OnViewportMouseUp;
         MouseMove += OnViewportMouseMove;
         MouseWheel += OnViewportMouseWheel;
         PreviewKeyDown += OnViewportKeyDown;
+        MouseEnter += OnViewportMouseEnter;
+
+        _glHost.MouseDown += OnViewportMouseDown;
+        _glHost.MouseUp += OnViewportMouseUp;
+        _glHost.MouseMove += OnViewportMouseMove;
+        _glHost.MouseWheel += OnViewportMouseWheel;
+        _glHost.PreviewKeyDown += OnViewportKeyDown;
+        _glHost.MouseEnter += OnViewportMouseEnter;
+
+        // Primary input target: transparent WPF overlay above the native host.
+        InputOverlay.MouseDown += OnViewportMouseDown;
+        InputOverlay.MouseUp += OnViewportMouseUp;
+        InputOverlay.MouseMove += OnViewportMouseMove;
+        InputOverlay.MouseWheel += OnViewportMouseWheel;
+        InputOverlay.PreviewKeyDown += OnViewportKeyDown;
+        InputOverlay.MouseEnter += OnViewportMouseEnter;
 
         // Keyboard polling timer (60 Hz for smooth WASD movement)
         _keyboardTimer = new DispatcherTimer(DispatcherPriority.Input)
@@ -84,98 +105,163 @@ public partial class ViewportPanel : UserControl
         _keyboardTimer.Tick += OnKeyboardPoll;
         _keyboardTimer.Start();
 
+        // HwndHost can swallow input routed events. Register preview handlers on the root window
+        // and route events into this viewport when the pointer is within viewport bounds.
+        _rootWindow = Window.GetWindow(this);
+        if (_rootWindow != null)
+        {
+            _rootWindow.PreviewMouseDown += OnRootPreviewMouseDown;
+            _rootWindow.PreviewMouseUp += OnRootPreviewMouseUp;
+            _rootWindow.PreviewMouseMove += OnRootPreviewMouseMove;
+            _rootWindow.PreviewMouseWheel += OnRootPreviewMouseWheel;
+            _rootWindow.PreviewKeyDown += OnRootPreviewKeyDown;
+        }
+
         // Start the render loop on a dedicated thread
         _renderLoop = new RenderLoop();
+        _renderLoop.Faulted += OnRenderLoopFaulted;
         _renderLoop.Start(_glHost, renderer, action => simService.WithEngineLock(action));
     }
 
     public void Shutdown()
     {
+        MouseDown -= OnViewportMouseDown;
+        MouseUp -= OnViewportMouseUp;
+        MouseMove -= OnViewportMouseMove;
+        MouseWheel -= OnViewportMouseWheel;
+        PreviewKeyDown -= OnViewportKeyDown;
+        MouseEnter -= OnViewportMouseEnter;
+
+        InputOverlay.MouseDown -= OnViewportMouseDown;
+        InputOverlay.MouseUp -= OnViewportMouseUp;
+        InputOverlay.MouseMove -= OnViewportMouseMove;
+        InputOverlay.MouseWheel -= OnViewportMouseWheel;
+        InputOverlay.PreviewKeyDown -= OnViewportKeyDown;
+        InputOverlay.MouseEnter -= OnViewportMouseEnter;
+
         _keyboardTimer?.Stop();
         _keyboardTimer = null;
 
-        _renderLoop?.Dispose();
+        if (_rootWindow != null)
+        {
+            _rootWindow.PreviewMouseDown -= OnRootPreviewMouseDown;
+            _rootWindow.PreviewMouseUp -= OnRootPreviewMouseUp;
+            _rootWindow.PreviewMouseMove -= OnRootPreviewMouseMove;
+            _rootWindow.PreviewMouseWheel -= OnRootPreviewMouseWheel;
+            _rootWindow.PreviewKeyDown -= OnRootPreviewKeyDown;
+            _rootWindow = null;
+        }
+
+        if (_renderLoop != null)
+        {
+            _renderLoop.Faulted -= OnRenderLoopFaulted;
+            _renderLoop.Dispose();
+        }
         _renderLoop = null;
 
         if (_glHost != null)
         {
+            _glHost.MouseDown -= OnViewportMouseDown;
+            _glHost.MouseUp -= OnViewportMouseUp;
+            _glHost.MouseMove -= OnViewportMouseMove;
+            _glHost.MouseWheel -= OnViewportMouseWheel;
+            _glHost.PreviewKeyDown -= OnViewportKeyDown;
+            _glHost.MouseEnter -= OnViewportMouseEnter;
             HostContainer.Children.Remove(_glHost);
             _glHost.Dispose();
             _glHost = null;
         }
     }
 
-    // ── Keyboard Polling (WASD / QE + Arrow Keys) ────────────────────
+    private void OnViewportMouseEnter(object sender, MouseEventArgs e)
+    {
+        _viewportInputActive = true;
+        InputOverlay.Focus();
+        Keyboard.Focus(InputOverlay);
+    }
+
+    private bool IsPointerInsideViewport(MouseEventArgs e)
+    {
+        var p = e.GetPosition(this);
+        return p.X >= 0 && p.Y >= 0 && p.X <= ActualWidth && p.Y <= ActualHeight;
+    }
+
+    private void OnRootPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!IsPointerInsideViewport(e)) return;
+        _viewportInputActive = true;
+        OnViewportMouseDown(this, e);
+    }
+
+    private void OnRootPreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_viewportInputActive) return;
+        OnViewportMouseUp(this, e);
+    }
+
+    private void OnRootPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!IsPointerInsideViewport(e) && !_leftMouseDown && !_rightMouseDown && !_middleMouseDown) return;
+        OnViewportMouseMove(this, e);
+    }
+
+    private void OnRootPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!IsPointerInsideViewport(e)) return;
+        _viewportInputActive = true;
+        OnViewportMouseWheel(this, e);
+    }
+
+    private void OnRootPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (!_viewportInputActive) return;
+        OnViewportKeyDown(this, e);
+    }
+
+    private void OnRenderLoopFaulted(Exception ex)
+    {
+        if (_renderFaultHandled) return;
+        _renderFaultHandled = true;
+
+        Dispatcher.Invoke(() =>
+        {
+            MessageBox.Show(
+                $"Simulation renderer failed to initialize or crashed.\n\n{ex.Message}\n\nCheck that shader assets are available and graphics drivers are working.",
+                "Renderer Initialization Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        });
+    }
+
+    // ── Keyboard Polling (WASD / QE) ────────────────────────────────
 
     private void OnKeyboardPoll(object? sender, EventArgs e)
     {
         if (_renderer == null) return;
 
-        // Keyboard input requires focus
-        if (IsFocused || IsKeyboardFocusWithin)
-        {
-            const float dt = 0.016f; // ~60fps
-            bool shiftHeld = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+        bool canNavigate =
+            IsKeyboardFocusWithin ||
+            IsFocused ||
+            IsMouseOver ||
+            _middleMouseDown ||
+            _leftMouseDown ||
+            _rightMouseDown;
+        if (!canNavigate) return;
 
-            // WASD controls (classic 3D viewport)
-            if (Keyboard.IsKeyDown(Key.W))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Forward, dt);
-            if (Keyboard.IsKeyDown(Key.S) && !Keyboard.IsKeyDown(Key.LeftCtrl))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Backward, dt);
-            if (Keyboard.IsKeyDown(Key.A))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
-            if (Keyboard.IsKeyDown(Key.D))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
-            if (Keyboard.IsKeyDown(Key.Q))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Down, dt);
-            if (Keyboard.IsKeyDown(Key.E))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Up, dt);
+        const float dt = 0.016f; // ~60fps
 
-            // Arrow key controls (per spec)
-            if (Keyboard.IsKeyDown(Key.Up))
-                _renderer.Camera.ProcessKeyboard(shiftHeld ? CameraMovement.Up : CameraMovement.Forward, dt);
-            if (Keyboard.IsKeyDown(Key.Down))
-                _renderer.Camera.ProcessKeyboard(shiftHeld ? CameraMovement.Down : CameraMovement.Backward, dt);
-            if (Keyboard.IsKeyDown(Key.Left))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
-            if (Keyboard.IsKeyDown(Key.Right))
-                _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
-        }
-
-        // Ghost placement polling — works even when HwndHost swallows MouseMove
-        PollPlacementGhostPosition();
-    }
-
-    /// <summary>
-    /// Polls the current mouse position and updates the ghost body or velocity
-    /// endpoint during placement mode. This is needed because the native OpenGL
-    /// HWND child absorbs WM_MOUSEMOVE and WPF's MouseMove routed event doesn't
-    /// fire on this control when no mouse button is pressed.
-    /// </summary>
-    private void PollPlacementGhostPosition()
-    {
-        if (ViewModel == null || !ViewModel.IsPlacingObject || _renderer == null) return;
-
-        // Mouse.GetPosition uses Win32 GetCursorPos internally — works regardless of HwndHost
-        var pos = Mouse.GetPosition(this);
-
-        // Only update if cursor is within the viewport bounds
-        if (pos.X < 0 || pos.Y < 0 || pos.X > ActualWidth || pos.Y > ActualHeight) return;
-
-        var (worldX, worldY, worldZ) = ScreenToWorldXZPlane(pos);
-
-        if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
-        {
-            ViewModel.UpdateGhostPosition(worldX, worldY, worldZ);
-            if (Cursor != Cursors.Cross)
-                Cursor = Cursors.Cross;
-        }
-        else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
-        {
-            ViewModel.UpdateVelocityEndpoint(worldX, worldY, worldZ);
-            if (Cursor != Cursors.ScrollAll)
-                Cursor = Cursors.ScrollAll;
-        }
+        if (Keyboard.IsKeyDown(Key.W))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Forward, dt);
+        if (Keyboard.IsKeyDown(Key.S) && !Keyboard.IsKeyDown(Key.LeftCtrl))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Backward, dt);
+        if (Keyboard.IsKeyDown(Key.A))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Left, dt);
+        if (Keyboard.IsKeyDown(Key.D))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Right, dt);
+        if (Keyboard.IsKeyDown(Key.Q))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Down, dt);
+        if (Keyboard.IsKeyDown(Key.E))
+            _renderer.Camera.ProcessKeyboard(CameraMovement.Up, dt);
     }
 
     // ── Keyboard Events ─────────────────────────────────────────────
@@ -225,7 +311,8 @@ public partial class ViewportPanel : UserControl
         if (_renderer == null) return;
 
         // Ensure the viewport has keyboard focus for WASD navigation
-        Focus();
+        InputOverlay.Focus();
+        Keyboard.Focus(InputOverlay);
 
         if (e.ChangedButton == MouseButton.Middle)
         {
@@ -407,13 +494,19 @@ public partial class ViewportPanel : UserControl
 
         if (ViewModel.IsPlacingObject)
         {
-            // Left-click finalizes: confirm velocity and place the body
-            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+            // Two-step placement flow
+            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
             {
+                // First click: confirm position
+                ViewModel.ConfirmPosition();
+                Cursor = Cursors.ScrollAll; // Change cursor for velocity phase
+            }
+            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
+            {
+                // Second click: confirm velocity and place
                 ViewModel.ConfirmVelocityAndPlace();
                 Cursor = Cursors.Cross; // Back to position cursor
             }
-            // Left-click during ChoosingPosition is a no-op (use right-click to fix position)
         }
         else
         {
@@ -462,28 +555,15 @@ public partial class ViewportPanel : UserControl
         }
     }
 
-    /// <summary>
-    /// Right click (no drag): during placement fixes position or cancels;
-    /// otherwise opens context menu or deselects.
-    /// </summary>
+    /// <summary>Right click (no drag): cancel placement, open context menu, or deselect.</summary>
     private void HandleRightClick(Point screenPos)
     {
         if (ViewModel == null || _renderer == null) return;
 
         if (ViewModel.IsPlacingObject)
         {
-            if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
-            {
-                // Right-click during position selection: fix ghost position
-                ViewModel.ConfirmPosition();
-                Cursor = Cursors.ScrollAll; // Change cursor for velocity phase
-            }
-            else if (ViewModel.PlacementPhase == PlacementPhase.ChoosingVelocity)
-            {
-                // Right-click during velocity selection: cancel back to position phase
-                ViewModel.CancelVelocityPhase();
-                Cursor = Cursors.Cross;
-            }
+            ViewModel.CancelPlacement();
+            UpdateCursorForMode();
             return;
         }
 
