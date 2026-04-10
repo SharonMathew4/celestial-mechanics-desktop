@@ -34,16 +34,17 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
-        run: dotnet restore CelestialMechanics.sln
+        run: dotnet restore CelestialMechanics.sln -m:1 /nr:false
 
       - name: Build (Release)
-        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release
+        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release -m:1 /nr:false
 
       - name: Test — Math
         run: >
           dotnet test
           tests/CelestialMechanics.Math.Tests/CelestialMechanics.Math.Tests.csproj
           --no-build --configuration Release
+          -m:1
           --logger "trx;LogFileName=math-results.trx"
           --results-directory ./test-results
 
@@ -52,7 +53,26 @@ jobs:
           dotnet test
           tests/CelestialMechanics.Physics.Tests/CelestialMechanics.Physics.Tests.csproj
           --no-build --configuration Release
+          -m:1
           --logger "trx;LogFileName=physics-results.trx"
+          --results-directory ./test-results
+
+      - name: Test — Simulation
+        run: >
+          dotnet test
+          tests/CelestialMechanics.Simulation.Tests/CelestialMechanics.Simulation.Tests.csproj
+          --no-build --configuration Release
+          -m:1
+          --logger "trx;LogFileName=simulation-results.trx"
+          --results-directory ./test-results
+
+      - name: Test — AppCore
+        run: >
+          dotnet test
+          tests/CelestialMechanics.AppCore.Tests/CelestialMechanics.AppCore.Tests.csproj
+          --no-build --configuration Release
+          -m:1
+          --logger "trx;LogFileName=appcore-results.trx"
           --results-directory ./test-results
 
       - name: Upload test results
@@ -119,6 +139,8 @@ jobs:
           dotnet publish
           src/CelestialMechanics.App/CelestialMechanics.App.csproj
           --configuration Release
+          -m:1
+          /nr:false
           --runtime ${{ matrix.rid }}
           --self-contained true
           -p:PublishSingleFile=true

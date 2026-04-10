@@ -36,6 +36,8 @@
   <ItemGroup>
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.27.0" />
   </ItemGroup>
 
   <!-- Pre-publish target to detect and kill the running process to prevent MSB4018 -->

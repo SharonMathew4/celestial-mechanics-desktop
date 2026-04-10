@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <BaseArtifactsPath>$(MSBuildThisFileDirectory)build_artifacts\</BaseArtifactsPath>
+    <ArtifactsProjectKey Condition="'$(AssemblyName)' != ''">$(AssemblyName)</ArtifactsProjectKey>
+    <ArtifactsProjectKey Condition="'$(ArtifactsProjectKey)' == ''">$(MSBuildProjectName)</ArtifactsProjectKey>
+    <BaseOutputPath>$(BaseArtifactsPath)bin\$(ArtifactsProjectKey)\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(BaseArtifactsPath)obj\$(ArtifactsProjectKey)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath Condition="'$(DesignTimeBuild)' != 'true'">$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**;$(MSBuildProjectDirectory)\obj_alt\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

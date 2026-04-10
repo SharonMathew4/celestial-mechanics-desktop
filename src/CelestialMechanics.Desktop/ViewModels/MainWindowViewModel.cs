@@ -1234,7 +1234,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _uiTimer.Stop();
         SceneOutlinerVm.Dispose();
         _simService.Dispose();
-        _renderer.Dispose();
+        // Renderer lifetime is owned by ViewportPanel/RenderLoop while a GL context is current.
+        // Disposing it here (after viewport shutdown) can invoke OpenGL calls without a valid context.
         _sceneService.Dispose();
     }
 }

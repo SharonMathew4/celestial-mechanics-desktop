@@ -13,6 +13,9 @@ public sealed partial class ModeSelectionViewModel : ObservableObject
     /// <summary>Raised when the user selects Simulation mode.</summary>
     public event Action? SimulationSelected;
 
+    /// <summary>Raised when the user selects Observation mode.</summary>
+    public event Action? ObservationSelected;
+
     /// <summary>Raised when the user clicks Exit.</summary>
     public event Action? ExitRequested;
 
@@ -20,6 +23,12 @@ public sealed partial class ModeSelectionViewModel : ObservableObject
     private void SelectSimulation()
     {
         SimulationSelected?.Invoke();
+    }
+
+    [RelayCommand]
+    private void SelectObservation()
+    {
+        ObservationSelected?.Invoke();
     }
 
     [RelayCommand]

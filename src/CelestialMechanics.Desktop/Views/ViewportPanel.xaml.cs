@@ -411,7 +411,7 @@ public partial class ViewportPanel : UserControl
         // ── Two-step placement: update ghost or velocity endpoint ────
         if (ViewModel != null && ViewModel.IsPlacingObject)
         {
-            var (worldX, worldY, worldZ) = ScreenToWorldXZPlane(pos);
+            var (worldX, worldY, worldZ) = ScreenToWorldCursorTip(pos);
 
             if (ViewModel.PlacementPhase == PlacementPhase.ChoosingPosition)
             {
@@ -457,6 +457,11 @@ public partial class ViewportPanel : UserControl
                 {
                     var (dx, dz) = ScreenDeltaToWorldDelta(deltaX, deltaY);
                     _simService.OffsetBodyPosition(_draggedBodyIndex, dx, 0, dz);
+                }
+                else
+                {
+                    // No selected body: keep camera orbit available in Edit mode.
+                    _renderer.Camera.ProcessMouseOrbit(deltaX, deltaY);
                 }
             }
             // In Idle or Simulate mode, left-drag orbits the camera
@@ -672,9 +677,10 @@ public partial class ViewportPanel : UserControl
     }
 
     /// <summary>
-    /// Converts a screen position to a point on the XZ plane (Y=0) using proper ray-plane intersection.
+    /// Converts screen position to a world point directly under the cursor by intersecting
+    /// the screen ray with a plane at the camera target depth.
     /// </summary>
-    private (float x, float y, float z) ScreenToWorldXZPlane(Point screenPos)
+    private (float x, float y, float z) ScreenToWorldCursorTip(Point screenPos)
     {
         if (_renderer == null) return (0, 0, 0);
 
@@ -704,15 +710,30 @@ public partial class ViewportPanel : UserControl
         var rayFar = new Vector3(farPoint.X, farPoint.Y, farPoint.Z) / farPoint.W;
         var rayDir = Vector3.Normalize(rayFar - rayOrigin);
 
-        // Intersect ray with Y=0 plane
-        if (MathF.Abs(rayDir.Y) < 0.0001f)
-            return (rayOrigin.X, 0, rayOrigin.Z);
+        // Intersect with a plane facing the camera and passing through the current camera target.
+        var planeNormal = Vector3.Normalize(cam.Target - cam.Position);
+        if (planeNormal.LengthSquared() < 0.0001f)
+        {
+            planeNormal = Vector3.UnitZ;
+        }
 
-        float t = -rayOrigin.Y / rayDir.Y;
-        if (t < 0) t = 10f; // Camera below plane; use a default distance
+        float denom = Vector3.Dot(rayDir, planeNormal);
+        float t;
+        if (MathF.Abs(denom) < 0.0001f)
+        {
+            t = cam.Distance;
+        }
+        else
+        {
+            t = Vector3.Dot(cam.Target - rayOrigin, planeNormal) / denom;
+            if (t < 0.05f)
+            {
+                t = cam.Distance;
+            }
+        }
 
         var hitPoint = rayOrigin + rayDir * t;
-        return (hitPoint.X, 0f, hitPoint.Z);
+        return (hitPoint.X, hitPoint.Y, hitPoint.Z);
     }
 
     /// <summary>

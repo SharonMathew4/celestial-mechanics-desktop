@@ -46,4 +46,18 @@ walkthrough.md
 
 # Build
 artifacts/
+build_artifacts/
 publish/
+publish_v2/
+compile_output.txt
+desktop_build.log
+desktop_build_diagnostic.log
+fresh_desktop_build.txt
+fresh_restore_diag.txt
+simulation_restore.log
+publish_log.txt
+publish_log2.txt
+appcore_test.log
+math_test.log
+imgui.ini
+[Oo]bj_alt/

@@ -1,0 +1,46 @@
+<UserControl x:Class="CelestialMechanics.Desktop.Views.Shell.SimulationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Margin="16"
+                CornerRadius="8"
+                BorderBrush="{StaticResource BorderPrimary}"
+                BorderThickness="1"
+                Background="{StaticResource BackgroundSecondary}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Simulation Panel"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           Foreground="{StaticResource TextPrimary}" />
+                <TextBlock Text="Project loaded. Use controls below to run simulation."
+                           Margin="0,8,0,0"
+                           HorizontalAlignment="Center"
+                           Foreground="{StaticResource TextSecondary}" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,8">
+            <Button Content="Start" Command="{Binding StartSimulationCommand}" Margin="4,0"/>
+            <Button Content="Pause" Command="{Binding PauseSimulationCommand}" Margin="4,0"/>
+            <Button Content="Stop" Command="{Binding StopSimulationCommand}" Margin="4,0"/>
+        </StackPanel>
+
+        <StatusBar Grid.Row="2">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusBar.FpsText}" />
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusBar.SimTimeText}" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</UserControl>

@@ -9,8 +9,6 @@ public static class Program
     {
         var app = new global::CelestialMechanics.Desktop.App();
         app.InitializeComponent();
-        var mainWindow = new global::CelestialMechanics.Desktop.Views.MainWindow();
-        app.MainWindow = mainWindow;
-        app.Run(mainWindow);
+        app.Run();
     }
 }

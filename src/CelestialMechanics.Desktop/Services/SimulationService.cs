@@ -11,7 +11,6 @@ namespace CelestialMechanics.Desktop.Services;
 public class SimulationService : IDisposable
 {
     private readonly SimulationEngine _engine;
-    private readonly SimulationClock _clock;
     private readonly object _engineLock = new();
     private Thread? _simThread;
     private volatile bool _running;
@@ -40,27 +39,24 @@ public class SimulationService : IDisposable
     public SimulationState? LastSimState => _lastSimState;
 
     /// <summary>
-    /// Raised on the simulation thread after each physics update.
-    /// Subscribers must marshal to the UI thread.
+    /// Raised when state is advanced.
     /// </summary>
     public event Action<SimulationState>? StateUpdated;
 
     public SimulationService()
     {
         _engine = new SimulationEngine();
-        _clock = new SimulationClock();
     }
 
+    // Backward-compatible thread API used by legacy ViewModels.
     public void StartSimThread()
     {
         if (_simThread != null) return;
         _running = true;
-        _clock.Start();
-
         _simThread = new Thread(SimLoop)
         {
             IsBackground = true,
-            Name = "Simulation Thread",
+            Name = "Simulation Thread"
         };
         _simThread.Start();
     }
@@ -75,35 +71,33 @@ public class SimulationService : IDisposable
     private void SimLoop()
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        double lastTime = sw.Elapsed.TotalSeconds;
-        double uiUpdateAccumulator = 0;
-
+        var last = sw.Elapsed.TotalSeconds;
         while (_running)
         {
-            double now = sw.Elapsed.TotalSeconds;
-            double dt = now - lastTime;
-            lastTime = now;
-
-            var physicsSw = System.Diagnostics.Stopwatch.StartNew();
-            lock (_engineLock)
-            {
-                _engine.Update(dt * TimeScale);
-                _lastState = _engine.State;
-                Interlocked.Exchange(ref _lastSimTimeBits, BitConverter.DoubleToInt64Bits(_engine.CurrentTime));
-                _lastSimState = _engine.CurrentState;
-            }
-            physicsSw.Stop();
-            Interlocked.Exchange(ref _lastPhysicsTimeMsBits, BitConverter.DoubleToInt64Bits(physicsSw.Elapsed.TotalMilliseconds));
-
-            // Throttle UI updates to ~30 Hz
-            uiUpdateAccumulator += dt;
-            if (uiUpdateAccumulator >= 1.0 / 30.0)
-            {
-                uiUpdateAccumulator = 0;
-                StateUpdated?.Invoke(_engine.CurrentState);
-            }
-
+            var now = sw.Elapsed.TotalSeconds;
+            var dt = now - last;
+            last = now;
+            AdvanceTick(dt);
             Thread.Sleep(1);
+        }
+    }
+
+    public void AdvanceTick(double dt)
+    {
+        var physicsSw = System.Diagnostics.Stopwatch.StartNew();
+        lock (_engineLock)
+        {
+            _engine.Update(dt * TimeScale);
+            _lastState = _engine.State;
+            Interlocked.Exchange(ref _lastSimTimeBits, BitConverter.DoubleToInt64Bits(_engine.CurrentTime));
+            _lastSimState = _engine.CurrentState;
+        }
+        physicsSw.Stop();
+        Interlocked.Exchange(ref _lastPhysicsTimeMsBits, BitConverter.DoubleToInt64Bits(physicsSw.Elapsed.TotalMilliseconds));
+
+        if (_lastSimState is not null)
+        {
+            StateUpdated?.Invoke(_lastSimState);
         }
     }
 

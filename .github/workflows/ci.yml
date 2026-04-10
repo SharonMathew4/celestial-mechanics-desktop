@@ -69,10 +69,10 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
-        run: dotnet restore CelestialMechanics.sln
+        run: dotnet restore CelestialMechanics.sln -m:1 /nr:false
 
       - name: Build (Release)
-        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release
+        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release -m:1 /nr:false
 
   # ───────────────────────────────────────────────────────────────────────────
   #  Job 2 — Unit tests + code coverage
@@ -101,11 +101,11 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore
-        run: dotnet restore CelestialMechanics.sln
+        run: dotnet restore CelestialMechanics.sln -m:1 /nr:false
 
       # Build in Release to match the configuration used by build-check.
       - name: Build (Release)
-        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release
+        run: dotnet build CelestialMechanics.sln --no-restore --configuration Release -m:1 /nr:false
 
       # ── Math unit tests ────────────────────────────────────────────────────
       - name: Test — CelestialMechanics.Math
@@ -114,6 +114,7 @@ jobs:
           tests/CelestialMechanics.Math.Tests/CelestialMechanics.Math.Tests.csproj
           --no-build
           --configuration Release
+          -m:1
           --logger "trx;LogFileName=math-results.trx"
           --results-directory ./test-results/math
           --collect:"XPlat Code Coverage"
@@ -127,8 +128,35 @@ jobs:
           tests/CelestialMechanics.Physics.Tests/CelestialMechanics.Physics.Tests.csproj
           --no-build
           --configuration Release
+          -m:1
           --logger "trx;LogFileName=physics-results.trx"
           --results-directory ./test-results/physics
+          --collect:"XPlat Code Coverage"
+          --
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Test — CelestialMechanics.Simulation
+        run: >
+          dotnet test
+          tests/CelestialMechanics.Simulation.Tests/CelestialMechanics.Simulation.Tests.csproj
+          --no-build
+          --configuration Release
+          -m:1
+          --logger "trx;LogFileName=simulation-results.trx"
+          --results-directory ./test-results/simulation
+          --collect:"XPlat Code Coverage"
+          --
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Test — CelestialMechanics.AppCore
+        run: >
+          dotnet test
+          tests/CelestialMechanics.AppCore.Tests/CelestialMechanics.AppCore.Tests.csproj
+          --no-build
+          --configuration Release
+          -m:1
+          --logger "trx;LogFileName=appcore-results.trx"
+          --results-directory ./test-results/appcore
           --collect:"XPlat Code Coverage"
           --
           DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura

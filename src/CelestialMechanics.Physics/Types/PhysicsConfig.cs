@@ -112,7 +112,7 @@ public class PhysicsConfig
     /// When true, sphere-sphere collision detection and merge resolution
     /// run after each integration step.
     /// </summary>
-    public bool EnableCollisions { get; set; } = true;
+    public bool EnableCollisions { get; set; } = false;
 
     /// <summary>
     /// When true, the simulation engine adjusts dt based on the maximum
