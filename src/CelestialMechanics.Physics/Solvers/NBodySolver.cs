@@ -6,6 +6,7 @@ using CelestialMechanics.Physics.Integrators;
 using CelestialMechanics.Physics.SoA;
 using CelestialMechanics.Physics.Types;
 using CelestialMechanics.Physics.Validation;
+using System;
 using System.Diagnostics;
 
 namespace CelestialMechanics.Physics.Solvers;
@@ -92,6 +93,11 @@ public class NBodySolver
     // ── Gravitational Waves (Phase 6D) ───────────────────────────────────
     private GravitationalWaveAnalyzer? _gwAnalyzer;
     private bool _enableGravitationalWaves;
+
+    // ── GPU Compute (Phase 8) ─────────────────────────────────────────────
+    private GlComputePhysicsBackend? _glComputeBackend;
+    private GpuFallbackGuard? _gpuFallbackGuard;
+    private ComputeMode _computeMode = ComputeMode.CPU;
 
     // ── Shared ─────────────────────────────────────────────────────────────────
     private readonly EnergyCalculator _energy = new();
@@ -199,7 +205,8 @@ public class NBodySolver
                              int maxAccretionParticles = 5000,
                              bool enableJets = false,
                              double jetThreshold = 0.1,
-                             double gwObserverDistance = 1000.0)
+                             double gwObserverDistance = 1000.0,
+                             ComputeMode computeMode = ComputeMode.CPU)
     {
         _useSoA                   = enabled;
         _softening                = softening;
@@ -222,6 +229,7 @@ public class NBodySolver
         _enableGravitationalWaves = enableGravitationalWaves;
         _enableBlackHolePhysics   = enableBlackHolePhysics;
         _enableThermalRadiation   = enableThermalRadiation;
+        _computeMode              = computeMode;
         _thermalRadiation.Enabled = _enableThermalRadiation;
 
         _collisionDetector.Configure(_enableCollisionBroadPhase, _collisionBroadPhaseThreshold);
@@ -452,7 +460,22 @@ public class NBodySolver
     {
         IPhysicsComputeBackend backend;
 
-        if (_useBarnesHut)
+        // ── GPU backend has highest priority (Phase 8) ────────────────────
+        if (_computeMode == ComputeMode.GPU)
+        {
+            if (_glComputeBackend == null)
+            {
+                _glComputeBackend = new GlComputePhysicsBackend();
+                _glComputeBackend.Initialize();
+            }
+            if (_gpuFallbackGuard == null)
+            {
+                // Fall back to parallel CPU backend if GPU fails
+                _gpuFallbackGuard = new GpuFallbackGuard(_glComputeBackend, _parallelBackend);
+            }
+            backend = _gpuFallbackGuard;
+        }
+        else if (_useBarnesHut)
         {
             // Deterministic mode trumps parallel flag
             if (_deterministicMode)

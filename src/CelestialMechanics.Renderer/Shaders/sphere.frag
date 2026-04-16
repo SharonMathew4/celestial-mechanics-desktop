@@ -53,6 +53,8 @@ uniform int uEnableGlowScaling;
 uniform float uGlowDistanceScale;
 out vec4 FragColor;
 
+// ─── Utility functions ────────────────────────────────────────────────────────
+
 vec3 toneMapAces(vec3 x)
 {
     const float a = 2.51;
@@ -144,6 +146,8 @@ vec2 sphereUv(vec3 n)
     return vec2(u, v);
 }
 
+// ─── Body texture application ─────────────────────────────────────────────────
+
 vec3 applyBodyTexture(vec3 baseColor, vec3 n, float visualType)
 {
     if (visualType < 0.5)
@@ -208,6 +212,8 @@ vec3 applyBodyTexture(vec3 baseColor, vec3 n, float visualType)
     }
 }
 
+// ─── Shadow ray tracing ───────────────────────────────────────────────────────
+
 float traceShadowRay(vec3 origin, vec3 lightPos, vec3 selfCenter, float selfRadius)
 {
     if (uRayTraceShadows == 0 || uRayOccluderCount == 0)
@@ -252,6 +258,8 @@ float traceShadowRay(vec3 origin, vec3 lightPos, vec3 selfCenter, float selfRadi
     return clamp(visibility, 0.05, 1.0);
 }
 
+// ─── Screen-space reflections ─────────────────────────────────────────────────
+
 vec3 sampleScreenReflections(vec3 viewDir, vec3 normal)
 {
     if (uEnableReflections == 0)
@@ -288,6 +296,8 @@ vec3 sampleScreenReflections(vec3 viewDir, vec3 normal)
     return accum / wsum;
 }
 
+// ─── Black hole shading ──────────────────────────────────────────────────────
+
 vec3 shadeBlackHole(vec3 norm, vec3 viewDir, vec3 localN, out float horizonMask, out float ringMask, out float warpMask, out float opticalDepthMask)
 {
     float edge = 1.0 - abs(dot(norm, viewDir));
@@ -323,9 +333,10 @@ vec3 shadeBlackHole(vec3 norm, vec3 viewDir, vec3 localN, out float horizonMask,
     vec3 ringGlow = source * (ringMask * 0.95 + warpMask * 0.55 + equatorBand * 0.85);
     vec3 scattered = source * (1.0 - transmittance) * (0.55 + 0.45 * ringMask);
 
-    vec3 core = vec3(0.004, 0.004, 0.006);
+    // *** Black hole core is PURE BLACK — no emissive, no reflections ***
+    vec3 core = vec3(0.0, 0.0, 0.0);
     float shadow = 1.0 - horizonMask;
-    vec3 result = mix(ringGlow + scattered, core, shadow * 0.95);
+    vec3 result = mix(ringGlow + scattered, core, shadow * 0.98);
 
     if (uBhQualityTier >= 1)
     {
@@ -343,6 +354,108 @@ vec3 shadeBlackHole(vec3 norm, vec3 viewDir, vec3 localN, out float horizonMask,
     return result;
 }
 
+// ─── Galaxy spiral disk shading (type 8) ─────────────────────────────────────
+
+vec3 shadeGalaxy(vec3 norm, vec3 localN, vec3 viewDir)
+{
+    // Flatten to disk: galaxy is a thin spiral disk in the XZ plane
+    float diskThickness = exp(-pow(localN.y / 0.12, 2.0));
+
+    // Spiral arm pattern
+    float angle = atan(localN.z, localN.x);
+    float radius = length(localN.xz);
+    float spiralFactor = 3.0; // number of arms
+    float spiral = 0.5 + 0.5 * sin(angle * spiralFactor + radius * 8.0 + uTime * 0.05);
+
+    // Add arm noise for irregularity
+    float armNoise = valueNoise3(localN * 12.0 + vec3(uTime * 0.01));
+    spiral = spiral * (0.7 + 0.3 * armNoise);
+
+    // Core bulge: bright dense center
+    float coreBulge = exp(-pow(radius / 0.15, 2.0));
+
+    // Stars scattered along arms
+    float starDensity = spiral * diskThickness * (0.3 + 0.7 * smoothstep(0.05, 0.8, radius));
+
+    // Color: warm white core, bluer arms (very desaturated)
+    vec3 coreColor = vec3(0.92, 0.88, 0.72) * 0.12;  // Very faint
+    vec3 armColor = vec3(0.65, 0.70, 0.82) * 0.06;    // Even fainter
+
+    vec3 result = mix(armColor, coreColor, coreBulge) * (starDensity + coreBulge * 0.8);
+
+    // Ensure galaxy is ALWAYS much fainter than stars
+    result *= 0.08;
+
+    return result;
+}
+
+// ─── Nebula volumetric noise shading (type 9) ────────────────────────────────
+
+vec3 shadeNebula(vec3 norm, vec3 localN, vec3 viewDir)
+{
+    // Irregular cloud shape using multi-octave noise
+    float density = fbm(localN * 4.0 + vec3(uTime * 0.008));
+    float density2 = fbm(localN * 7.0 + vec3(-3.0, 2.0, 1.0) + uTime * 0.005);
+
+    // Stretched, asymmetric shape
+    float shape = smoothstep(0.32, 0.78, density);
+    float detail = smoothstep(0.45, 0.88, density2) * 0.6;
+
+    // Color: desaturated reds/blues only — never bright
+    vec3 nebColor1 = vec3(0.18, 0.08, 0.22);  // Desaturated purple
+    vec3 nebColor2 = vec3(0.22, 0.12, 0.08);  // Desaturated warm red
+    vec3 nebColor3 = vec3(0.08, 0.12, 0.20);  // Desaturated blue
+
+    vec3 color = mix(nebColor1, nebColor2, density);
+    color = mix(color, nebColor3, detail);
+
+    // Very low opacity — additive blending effect
+    float opacity = (shape + detail * 0.5) * 0.06;
+
+    // Edge fadeout for diffuse boundary
+    float edgeFade = 1.0 - smoothstep(0.6, 1.0, length(localN));
+
+    return color * opacity * edgeFade;
+}
+
+// ─── Explosion / Supernova shading (type 10) ─────────────────────────────────
+
+vec3 shadeExplosion(vec3 norm, vec3 localN, vec3 viewDir, float luminosity)
+{
+    float edge = 1.0 - abs(dot(norm, viewDir));
+
+    // Inner bright core (white-hot)
+    float coreMask = smoothstep(0.4, 0.0, length(localN) * 0.8);
+
+    // Expanding shockwave ring
+    float ringRadius = 0.6 + 0.15 * sin(uTime * 2.5);
+    float ring = exp(-pow((length(localN.xz) - ringRadius) / 0.08, 2.0));
+    ring *= (1.0 - abs(localN.y) * 2.0); // flatten ring to equatorial plane
+
+    // Non-uniform debris pattern
+    float debris = fbm(localN * 15.0 + vec3(uTime * 0.3));
+    float debrisMask = smoothstep(0.4, 0.75, debris) * edge;
+
+    // Supernova MUST be brightest: HDR intensity 10+
+    vec3 coreColor = vec3(10.0, 9.5, 8.5);  // Peak white-hot HDR
+    vec3 ringColor = vec3(8.0, 5.0, 2.0);   // Orange-hot shockwave
+    vec3 debrisColor = vec3(4.0, 2.0, 0.8);  // Cooling debris
+
+    vec3 result = coreColor * coreMask
+               + ringColor * ring * 0.6
+               + debrisColor * debrisMask * 0.3;
+
+    // Scale by luminosity — explosions get maximum multiplier
+    result *= max(luminosity, 3.0);
+
+    // Strong bloom contribution
+    result += vec3(1.0, 0.85, 0.65) * pow(edge, 1.2) * luminosity * 2.0;
+
+    return result;
+}
+
+// ─── Main fragment shader ─────────────────────────────────────────────────────
+
 void main()
 {
     vec3 norm = normalize(vNormal);
@@ -354,7 +467,8 @@ void main()
     float glowStrength = vVisual.z;
     float atmosphere = vVisual.w;
 
-    if (visualType >= 6.5)
+    // ═══ BLACK HOLE (type 7) ═══════════════════════════════════════════════
+    if (visualType >= 6.5 && visualType < 7.5)
     {
         float horizonMask;
         float ringMask;
@@ -389,6 +503,65 @@ void main()
         FragColor = vec4(result, clamp(vColor.a, 0.0, 1.0));
         return;
     }
+
+    // ═══ GALAXY (type 8) — spiral disk, very faint ═════════════════════════
+    if (visualType >= 7.5 && visualType < 8.5)
+    {
+        vec3 galaxyColor = shadeGalaxy(norm, localN, viewDir);
+
+        // NO bloom, NO reflections, NO glow scaling for galaxies
+        if (uEnableHdr != 0)
+        {
+            vec3 hdrColor = galaxyColor * max(uExposure, 0.01);
+            galaxyColor = vec3(1.0) - exp(-hdrColor);
+        }
+
+        galaxyColor = pow(galaxyColor, vec3(1.0 / 2.2));
+        FragColor = vec4(galaxyColor, clamp(vColor.a, 0.0, 1.0));
+        return;
+    }
+
+    // ═══ NEBULA (type 9) — volumetric noise, extremely faint ═══════════════
+    if (visualType >= 8.5 && visualType < 9.5)
+    {
+        vec3 nebulaColor = shadeNebula(norm, localN, viewDir);
+
+        // NO bloom, NO reflections for nebulae
+        if (uEnableHdr != 0)
+        {
+            vec3 hdrColor = nebulaColor * max(uExposure, 0.01);
+            nebulaColor = vec3(1.0) - exp(-hdrColor);
+        }
+
+        nebulaColor = pow(nebulaColor, vec3(1.0 / 2.2));
+        // Very low alpha for additive blending effect
+        float nebulaAlpha = clamp(length(nebulaColor) * 3.0, 0.0, 0.3);
+        FragColor = vec4(nebulaColor, nebulaAlpha);
+        return;
+    }
+
+    // ═══ EXPLOSION / SUPERNOVA (type 10) — brightest object ════════════════
+    if (visualType >= 9.5)
+    {
+        vec3 explosionColor = shadeExplosion(norm, localN, viewDir, luminosity);
+
+        // Explosions get FULL bloom treatment
+        if (uEnableHdr != 0)
+        {
+            vec3 hdrColor = explosionColor * max(uExposure, 0.01);
+            explosionColor = toneMapAces(hdrColor);
+        }
+        else
+        {
+            explosionColor = clamp(explosionColor, 0.0, 1.0);
+        }
+
+        explosionColor = pow(explosionColor, vec3(1.0 / 2.2));
+        FragColor = vec4(explosionColor, clamp(vColor.a, 0.0, 1.0));
+        return;
+    }
+
+    // ═══ STANDARD BODIES (Stars, Planets, etc.) ════════════════════════════
 
     float diff = 0.0;
     vec3 directDiffuse = vec3(0.0);
@@ -450,6 +623,9 @@ void main()
     if (visualType < 0.5 || visualType >= 5.0)
         emissive = luminosity * (visualType < 0.5 ? starPulse : 1.0);
 
+    // Emissive glow term: additive, controlled by luminosity
+    vec3 emissiveGlow = albedo * emissive * 0.15;
+
     if (visualType < 0.5 && vStarTemperatureK > 0.0)
     {
         float tempBoost = clamp((vStarTemperatureK - 2600.0) / 18000.0, 0.0, 1.0);
@@ -461,7 +637,7 @@ void main()
     vec3 lit = directDiffuse * albedo + directSpec;
     vec3 glow = rimColor * (rim * glowStrength + atmosphere * rim * 0.45) * uGlobalGlow;
 
-    vec3 result = lit + emissive * uGlobalLuminosity * albedo + glow;
+    vec3 result = lit + emissive * uGlobalLuminosity * albedo + emissiveGlow + glow;
 
     if (uEnableGlowScaling != 0)
     {
@@ -477,15 +653,20 @@ void main()
     result = mix(result, reflectionColor, reflectivity);
     result += reflectionColor * fresnel;
 
+    // ─── Bloom: apply ONLY to stars, neutron stars, accretion disks ───────
+    //     NOT to galaxies, nebulae, or background objects
     float bloom = 0.0;
     if (visualType < 0.5)
         bloom = pow(rim, 1.24) * 1.08 + smoothstep(0.84, 1.0, diff) * 0.12;
     else if (visualType < 5.5 && luminosity > 0.7)
         bloom = pow(rim, 1.45) * 0.75;
-    else if (visualType >= 6.5)
+    else if (visualType >= 5.0 && visualType < 6.5)
         bloom = pow(rim, 1.05) * 1.35;
+    // visualType 8 (galaxy) and 9 (nebula) get ZERO bloom
 
-    vec3 bloomTint = visualType >= 6.5 ? vec3(0.66, 0.80, 1.0) : vec3(0.72, 0.84, 1.0);
+    vec3 bloomTint = (visualType >= 5.0 && visualType < 6.5)
+        ? vec3(0.66, 0.80, 1.0)
+        : vec3(0.72, 0.84, 1.0);
     result += bloomTint * bloom * luminosity * uGlobalGlow;
 
     float luma = dot(result, vec3(0.2126, 0.7152, 0.0722));

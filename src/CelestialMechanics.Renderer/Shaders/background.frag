@@ -88,11 +88,13 @@ void main()
     vec2 camOffsetNebula = uCameraPos.xz * 0.00018;
     vec2 p = (uv - 0.5) * vec2(uResolution.x / max(uResolution.y, 1.0), 1.0);
 
+    // ─── Deep space background gradient ─────────────────────────────────
     vec3 top = vec3(0.02, 0.03, 0.07);
     vec3 bot = vec3(0.005, 0.008, 0.02);
     float grad = smoothstep(-0.8, 1.0, p.y);
     vec3 col = mix(bot, top, grad);
 
+    // ─── Star fields (multiple layers with parallax) ────────────────────
     float stars1 = starField(uv + camOffsetNear, 220.0, 0.996);
     float stars2 = starField(uv + vec2(0.13, 0.29) + camOffsetFar, 380.0, 0.9982);
     float stars3 = starField(uv + vec2(0.47, 0.11) + camOffsetNear * 0.6, 120.0, 0.9925);
@@ -101,29 +103,50 @@ void main()
                    + vec3(0.75, 0.84, 1.0) * stars2
                    + vec3(1.0, 0.9, 0.78) * stars3) * max(uStarEmissionMultiplier, 0.0);
 
+    // ─── Background nebulae (irregular, volumetric, desaturated) ────────
     vec3 noiseCoord = vec3((uv + camOffsetNebula) * 3.0, uTime * 0.02);
+
+    // Multiple noise layers for irregular, non-spherical shape
     float gasLayer = fbm(noiseCoord);
     float dustLayer = fbm(noiseCoord * 1.7 + vec3(8.0, 3.0, 1.0));
     float plasmaLayer = fbm(noiseCoord * 2.4 + vec3(-5.0, 2.0, 3.0));
 
-    float gasAlpha = smoothstep(0.38, 0.92, gasLayer);
-    float dustAlpha = smoothstep(0.52, 0.95, dustLayer) * 0.7;
-    float plasmaAlpha = smoothstep(0.61, 0.98, plasmaLayer) * 0.85;
+    // Asymmetric, stretched shapes — NOT uniform blobs
+    float warpX = fbm(noiseCoord * 0.8 + vec3(12.0, 0.0, 3.5));
+    float warpY = fbm(noiseCoord * 0.9 + vec3(0.0, 7.0, 1.2));
+    vec3 warpedCoord = noiseCoord + vec3(warpX * 0.4, warpY * 0.3, 0.0);
+    float stretchedGas = fbm(warpedCoord * 1.5);
 
-    vec3 nebulaColor = vec3(0.25, 0.14, 0.38) * gasAlpha
-                     + vec3(0.08, 0.06, 0.10) * dustAlpha
-                     + vec3(0.36, 0.22, 0.44) * plasmaAlpha;
-    nebulaColor *= max(uNebulaEmissionMultiplier, 0.0);
+    float gasAlpha = smoothstep(0.42, 0.92, gasLayer) * smoothstep(0.35, 0.85, stretchedGas);
+    float dustAlpha = smoothstep(0.55, 0.95, dustLayer) * 0.5;
+    float plasmaAlpha = smoothstep(0.65, 0.98, plasmaLayer) * 0.6;
 
-    float lightInfluence = clamp((stars1 + stars2 + stars3) * 3.0, 0.0, 1.0);
-    nebulaColor += nebulaColor * lightInfluence * 0.45;
+    // Desaturated colours only — subtle reds/blues, never bright
+    vec3 nebulaColor = vec3(0.18, 0.10, 0.28) * gasAlpha        // Desaturated purple gas
+                     + vec3(0.06, 0.04, 0.08) * dustAlpha        // Very dark dust
+                     + vec3(0.22, 0.14, 0.32) * plasmaAlpha;     // Faint plasma
 
+    // Clamp nebula emission very low — must never dominate scene
+    nebulaColor *= clamp(uNebulaEmissionMultiplier, 0.0, 0.5) * 0.6;
+
+    // Subtle star illumination of nearby gas (very faint)
+    float lightInfluence = clamp((stars1 + stars2 + stars3) * 2.0, 0.0, 0.5);
+    nebulaColor += nebulaColor * lightInfluence * 0.25;
+
+    // ─── Milky Way band (faint galactic plane) ──────────────────────────
+    float galacticPlane = exp(-pow(p.y / 0.18, 2.0));
+    float milkyNoise = fbm(vec3(p.x * 8.0 + camOffsetFar.x, p.y * 2.0, uTime * 0.005));
+    vec3 milkyColor = vec3(0.08, 0.07, 0.06) * galacticPlane * milkyNoise * 0.3;
+
+    // ─── Compose ────────────────────────────────────────────────────────
     col += starColor;
     col += nebulaColor;
+    col += milkyColor;
 
     float fog = clamp(uFogDensity * 8.0, 0.0, 0.95);
     col = mix(col, uFogColor, fog);
 
+    // HDR tone mapping
     vec3 hdr = col * max(uExposure, 0.01);
     col = vec3(1.0) - exp(-hdr);
 

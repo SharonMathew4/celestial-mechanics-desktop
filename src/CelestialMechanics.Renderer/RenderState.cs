@@ -93,6 +93,9 @@ public class RenderState
         BodyType.Asteroid or BodyType.Comet => new Vector4(0.5f, 0.5f, 0.4f, 1.0f),
         BodyType.NeutronStar => new Vector4(0.5f, 0.8f, 1.0f, 1.0f),
         BodyType.BlackHole => new Vector4(0.02f, 0.02f, 0.02f, 1.0f), // Opaque black core
+        BodyType.Galaxy => new Vector4(0.85f, 0.82f, 0.72f, 0.12f),  // Very faint warm white
+        BodyType.Nebula => new Vector4(0.35f, 0.22f, 0.42f, 0.08f),  // Very faint desaturated purple
+        BodyType.Explosion => new Vector4(1.0f, 0.95f, 0.85f, 1.0f), // Brightest white-hot
         _ => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),
     };
 
@@ -110,6 +113,9 @@ public class RenderState
             BodyType.Comet => 4f,
             BodyType.NeutronStar => 5f,
             BodyType.BlackHole => 7f,
+            BodyType.Galaxy => 8f,
+            BodyType.Nebula => 9f,
+            BodyType.Explosion => 10f,
             _ => 1f,
         };
 
@@ -122,12 +128,21 @@ public class RenderState
             luminosity = System.MathF.Max(luminosity, 1.25f);
         else if (body.Type == BodyType.BlackHole)
             luminosity = System.MathF.Max(luminosity, 0.1f);
+        else if (body.Type == BodyType.Galaxy)
+            luminosity = System.Math.Clamp(luminosity, 0.02f, 0.15f); // Very faint
+        else if (body.Type == BodyType.Nebula)
+            luminosity = System.Math.Clamp(luminosity, 0.01f, 0.08f); // Extremely faint
+        else if (body.Type == BodyType.Explosion)
+            luminosity = System.MathF.Max(luminosity, 3.5f); // Brightest possible
 
         float glow = body.Type switch
         {
             BodyType.Star => 1.0f + 0.18f * luminosity,
             BodyType.NeutronStar => 1.3f + 0.2f * luminosity,
             BodyType.BlackHole => 0.45f,
+            BodyType.Galaxy => 0.02f,    // Minimal glow — background object
+            BodyType.Nebula => 0.01f,    // Almost zero glow
+            BodyType.Explosion => 2.5f + 0.4f * luminosity, // Maximum glow
             _ => 0.02f + 0.04f * luminosity,
         };
 
@@ -138,6 +153,9 @@ public class RenderState
             BodyType.BlackHole => 0.55f,
             BodyType.Star => 0.22f,
             BodyType.NeutronStar => 0.28f,
+            BodyType.Galaxy => 0.0f,     // No rim — flat structure
+            BodyType.Nebula => 0.0f,     // No rim — diffuse cloud
+            BodyType.Explosion => 0.65f, // Strong rim emission
             _ => 0.12f,
         };
 

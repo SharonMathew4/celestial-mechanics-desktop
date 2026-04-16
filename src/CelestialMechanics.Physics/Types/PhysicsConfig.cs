@@ -1,6 +1,17 @@
 namespace CelestialMechanics.Physics.Types;
 
 /// <summary>
+/// Physics compute backend selection mode.
+/// CPU = existing CPU backends (single-thread, parallel, SIMD, Barnes-Hut)
+/// GPU = OpenGL 4.3 compute shader backend (with auto-fallback to CPU on failure)
+/// </summary>
+public enum ComputeMode
+{
+    CPU,
+    GPU
+}
+
+/// <summary>
 /// Softening kernel mode for gravitational potential regularisation.
 ///
 /// Softening prevents the force from diverging when two bodies approach
@@ -260,4 +271,13 @@ public class PhysicsConfig
     /// Used for gravitational wave strain calculation: h ∝ 1/d.
     /// </summary>
     public double GravitationalWaveObserverDistance { get; set; } = 1000.0;
+
+    // ── Phase 8: GPU Compute ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Physics compute backend selection.
+    /// CPU (default) = existing CPU backends selected by other flags.
+    /// GPU = OpenGL 4.3 compute shader backend with automatic CPU fallback.
+    /// </summary>
+    public ComputeMode ComputeBackend { get; set; } = ComputeMode.CPU;
 }

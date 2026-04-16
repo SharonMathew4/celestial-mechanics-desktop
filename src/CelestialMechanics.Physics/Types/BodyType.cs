@@ -11,5 +11,8 @@ public enum BodyType
     NeutronStar,
     BlackHole,
     Comet,
-    Custom
+    Custom,
+    Galaxy,
+    Nebula,
+    Explosion
 }

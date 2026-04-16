@@ -85,7 +85,8 @@ public class SimulationEngine
             maxAccretionParticles:    _config.MaxAccretionParticles,
             enableJets:               _config.EnableJetEmission,
             jetThreshold:             _config.AccretionJetThreshold,
-            gwObserverDistance:       _config.GravitationalWaveObserverDistance
+            gwObserverDistance:       _config.GravitationalWaveObserverDistance,
+            computeMode:              _config.ComputeBackend
         );
     }
 

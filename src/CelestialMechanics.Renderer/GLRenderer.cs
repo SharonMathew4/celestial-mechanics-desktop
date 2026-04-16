@@ -1383,6 +1383,9 @@ public class GLRenderer : IDisposable
         BodyType.Asteroid or BodyType.Comet => new Vector4(0.6f, 0.6f, 0.55f, 0.3f),
         BodyType.NeutronStar => new Vector4(0.65f, 0.88f, 1.0f, 0.35f),
         BodyType.BlackHole => new Vector4(0.75f, 0.6f, 1.0f, 0.35f),
+        BodyType.Galaxy => new Vector4(0.82f, 0.78f, 0.68f, 0.12f),
+        BodyType.Nebula => new Vector4(0.55f, 0.38f, 0.65f, 0.10f),
+        BodyType.Explosion => new Vector4(1.0f, 0.75f, 0.35f, 0.55f),
         _ => new Vector4(0.85f, 0.85f, 0.85f, 0.3f),
     };
 

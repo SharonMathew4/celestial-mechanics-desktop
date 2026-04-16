@@ -1,0 +1,54 @@
+#version 430
+
+// N-body gravitational force computation kernel.
+// Each invocation computes the net gravitational acceleration
+// for a single body from all other active bodies.
+
+layout(local_size_x = 256) in;
+
+struct Body {
+    vec4 positionMass;   // xyz = position, w = mass
+    vec4 acceleration;   // xyz = acceleration, w = isActive (1.0 = active)
+};
+
+layout(std430, binding = 0) buffer Bodies {
+    Body bodies[];
+};
+
+uniform uint  uBodyCount;
+uniform float uSoftening;
+uniform float uG;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= uBodyCount) return;
+
+    // Skip inactive bodies
+    if (bodies[i].acceleration.w < 0.5) {
+        bodies[i].acceleration.xyz = vec3(0.0);
+        return;
+    }
+
+    vec3 pos_i = bodies[i].positionMass.xyz;
+    float eps2 = uSoftening * uSoftening;
+    vec3 acc = vec3(0.0);
+
+    for (uint j = 0; j < uBodyCount; j++)
+    {
+        if (i == j) continue;
+
+        // Skip inactive bodies
+        if (bodies[j].acceleration.w < 0.5) continue;
+
+        vec3 dir = bodies[j].positionMass.xyz - pos_i;
+        float dist2 = dot(dir, dir) + eps2;
+        float invDist = inversesqrt(dist2);
+        float invDist3 = invDist * invDist * invDist;
+        float force = uG * bodies[j].positionMass.w * invDist3;
+
+        acc += dir * force;
+    }
+
+    bodies[i].acceleration.xyz = acc;
+}
