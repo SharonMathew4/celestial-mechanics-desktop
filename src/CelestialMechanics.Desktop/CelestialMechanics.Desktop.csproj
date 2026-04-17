@@ -9,6 +9,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>CelestialMechanics.Desktop</RootNamespace>
     <AssemblyName>CelestialMechanics.Desktop</AssemblyName>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
     
     <!-- Application Icon - will be embedded in exe -->
     <ApplicationIcon Condition="Exists('app.ico')">app.ico</ApplicationIcon>
@@ -29,6 +32,12 @@
     <!-- Keep project buildable as a referenced desktop assembly.
          Publish-specific flags are passed via dotnet publish command. -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Exclude the nested Math source copy so it is not compiled as part of Desktop -->
+    <Compile Remove="CelestialMechanics.Math\**" />
+    <None Include="CelestialMechanics.Math\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CelestialMechanics.AppCore\CelestialMechanics.AppCore.csproj" />

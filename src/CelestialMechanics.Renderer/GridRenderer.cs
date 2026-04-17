@@ -15,7 +15,7 @@ public class GridRenderer : IDisposable
         _gl = gl;
 
         var vertices = new List<float>();
-        int halfSize = 50;
+        int halfSize = 20;
         float y = 0f;
 
         for (int i = -halfSize; i <= halfSize; i++)

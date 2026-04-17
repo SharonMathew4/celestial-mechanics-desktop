@@ -18,10 +18,10 @@ public class InstancedSphereRenderer : IDisposable
     private const int InstanceStride = 14 * sizeof(float);
     private float[] _instanceData = Array.Empty<float>();
 
-    public void Initialize(GL gl)
+    public void Initialize(GL gl, int subdivisions = 3)
     {
         _gl = gl;
-        GenerateIcosphere(3, out float[] vertices, out uint[] indices);
+        GenerateIcosphere(subdivisions, out float[] vertices, out uint[] indices);
         _indexCount = indices.Length;
 
         _vao = gl.GenVertexArray();

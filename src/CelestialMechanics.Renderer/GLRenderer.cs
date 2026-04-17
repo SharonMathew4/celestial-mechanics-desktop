@@ -70,12 +70,20 @@ public class GLRenderer : IDisposable
     }
 
     private GL? _gl;
-    private InstancedSphereRenderer _sphereRenderer = new();
+    private InstancedSphereRenderer _planetRenderer = new();
+    private InstancedSphereRenderer _starRenderer = new();
+    private InstancedSphereRenderer _galaxyRenderer = new();
+    private InstancedSphereRenderer _nebulaRenderer = new();
+    private InstancedSphereRenderer _blackHoleRenderer = new();
     private InstancedSphereRenderer _effectSphereRenderer = new();
     private AccretionDiskRenderer? _accretionDiskRenderer;
     private GridRenderer _gridRenderer = new();
     private LineRenderer _lineRenderer = new();
-    private ShaderProgram? _sphereShader;
+    private ShaderProgram? _planetShader;
+    private ShaderProgram? _starShader;
+    private ShaderProgram? _galaxyShader;
+    private ShaderProgram? _nebulaShader;
+    private ShaderProgram? _blackHoleShader;
     private ShaderProgram? _gridShader;
     private ShaderProgram? _lineShader;
     private ShaderProgram? _backgroundShader;
@@ -83,6 +91,11 @@ public class GLRenderer : IDisposable
     private Camera _camera = new();
     private RenderState _renderState = new();
     private RenderBody[] _compositeBodies = Array.Empty<RenderBody>();
+    private RenderBody[] _planetBodies = Array.Empty<RenderBody>();
+    private RenderBody[] _starBodies = Array.Empty<RenderBody>();
+    private RenderBody[] _galaxyBodies = Array.Empty<RenderBody>();
+    private RenderBody[] _nebulaBodies = Array.Empty<RenderBody>();
+    private RenderBody[] _blackHoleBodies = Array.Empty<RenderBody>();
     private RenderBody[] _effectBodies = Array.Empty<RenderBody>();
     private int _effectBodyCount;
     private BackgroundRenderer _backgroundRenderer = new();
@@ -256,8 +269,11 @@ public class GLRenderer : IDisposable
         string shaderDir = FindShaderDirectory();
 
         string sphereVert = File.ReadAllText(Path.Combine(shaderDir, "sphere.vert"));
-        string sphereFrag = File.ReadAllText(Path.Combine(shaderDir, "sphere.frag"));
-        _sphereShader = new ShaderProgram(gl, sphereVert, sphereFrag);
+        _planetShader = new ShaderProgram(gl, sphereVert, File.ReadAllText(Path.Combine(shaderDir, "planet.frag")));
+        _starShader = new ShaderProgram(gl, sphereVert, File.ReadAllText(Path.Combine(shaderDir, "star.frag")));
+        _galaxyShader = new ShaderProgram(gl, sphereVert, File.ReadAllText(Path.Combine(shaderDir, "galaxy.frag")));
+        _nebulaShader = new ShaderProgram(gl, sphereVert, File.ReadAllText(Path.Combine(shaderDir, "nebula.frag")));
+        _blackHoleShader = new ShaderProgram(gl, sphereVert, File.ReadAllText(Path.Combine(shaderDir, "blackhole.frag")));
 
         string gridVert = File.ReadAllText(Path.Combine(shaderDir, "grid.vert"));
         string gridFrag = File.ReadAllText(Path.Combine(shaderDir, "grid.frag"));
@@ -271,7 +287,11 @@ public class GLRenderer : IDisposable
         string bgFrag = File.ReadAllText(Path.Combine(shaderDir, "background.frag"));
         _backgroundShader = new ShaderProgram(gl, bgVert, bgFrag);
 
-        _sphereRenderer.Initialize(gl);
+        _planetRenderer.Initialize(gl, 4);
+        _starRenderer.Initialize(gl, 1);
+        _galaxyRenderer.Initialize(gl, 2);
+        _nebulaRenderer.Initialize(gl, 2);
+        _blackHoleRenderer.Initialize(gl, 4);
         _effectSphereRenderer.Initialize(gl);
         _albedoAtlas = new ProceduralAlbedoAtlas(gl);
         _albedoAtlas.Initialize();
@@ -339,8 +359,30 @@ public class GLRenderer : IDisposable
 
         BuildStarLightsAndOccluders();
 
-        // Update sphere instances
-        _sphereRenderer.UpdateInstances(_compositeBodies, compositeCount);
+        // Pre-allocate capacities
+        if (_planetBodies.Length < compositeCount) _planetBodies = new RenderBody[compositeCount];
+        if (_starBodies.Length < compositeCount) _starBodies = new RenderBody[compositeCount];
+        if (_galaxyBodies.Length < compositeCount) _galaxyBodies = new RenderBody[compositeCount];
+        if (_nebulaBodies.Length < compositeCount) _nebulaBodies = new RenderBody[compositeCount];
+        if (_blackHoleBodies.Length < compositeCount) _blackHoleBodies = new RenderBody[compositeCount];
+
+        int planetCount = 0, starCount = 0, galaxyCount = 0, nebulaCount = 0, bhCount = 0;
+        for (int i = 0; i < compositeCount; i++)
+        {
+            var body = _compositeBodies[i];
+            float visualType = body.VisualParams.X;
+            if (visualType >= 6.5f && visualType < 7.5f) _blackHoleBodies[bhCount++] = body;
+            else if (visualType >= 7.5f && visualType < 8.5f) _galaxyBodies[galaxyCount++] = body;
+            else if (visualType >= 8.5f && visualType < 9.5f) _nebulaBodies[nebulaCount++] = body;
+            else if (visualType < 0.5f || visualType >= 9.5f) _starBodies[starCount++] = body;
+            else _planetBodies[planetCount++] = body;
+        }
+
+        _planetRenderer.UpdateInstances(_planetBodies, planetCount);
+        _starRenderer.UpdateInstances(_starBodies, starCount);
+        _galaxyRenderer.UpdateInstances(_galaxyBodies, galaxyCount);
+        _nebulaRenderer.UpdateInstances(_nebulaBodies, nebulaCount);
+        _blackHoleRenderer.UpdateInstances(_blackHoleBodies, bhCount);
         _effectSphereRenderer.UpdateInstances(_effectBodies, _effectBodyCount);
 
         if (_accretionDiskRenderer != null)
@@ -949,80 +991,96 @@ public class GLRenderer : IDisposable
         {
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            _sphereShader!.Use();
             if (_albedoAtlas != null)
             {
                 _gl.ActiveTexture(TextureUnit.Texture1);
                 _gl.BindTexture(TextureTarget.Texture2DArray, _albedoAtlas.Handle);
             }
-            _sphereShader.SetUniform("uView", view);
-            _sphereShader.SetUniform("uProjection", projection);
-            _sphereShader.SetUniform("uViewPos", viewPos);
-            _sphereShader.SetUniform("uTime", _timeSeconds);
-            _sphereShader.SetUniform("uGlobalLuminosity", GlobalLuminosityScale * starEmission * exposure);
-            _sphereShader.SetUniform("uGlobalGlow", GlobalGlowScale * starEmission * bloomEnabled * bloomIntensity);
-            _sphereShader.SetUniform("uGlobalSaturation", GlobalSaturation);
-            _sphereShader.SetUniform("uUseAlbedoAtlas", EnableAlbedoTextureMaps && _albedoAtlas != null ? 1 : 0);
-            _sphereShader.SetUniform("uBodyAlbedoAtlas", 1);
             if (_reflectionColorTex != 0)
             {
                 _gl.ActiveTexture(TextureUnit.Texture2);
                 _gl.BindTexture(TextureTarget.Texture2D, _reflectionColorTex);
-                _sphereShader.SetUniform("uScreenTexture", 2);
             }
-
             if (_reflectionDepthTex != 0)
             {
                 _gl.ActiveTexture(TextureUnit.Texture3);
                 _gl.BindTexture(TextureTarget.Texture2D, _reflectionDepthTex);
-                _sphereShader.SetUniform("uDepthTexture", 3);
             }
 
-            _sphereShader.SetUniform("uAlbedoBlend", System.Math.Clamp(AlbedoTextureBlend, 0.0f, 1.0f));
-            _sphereShader.SetUniform("uEnableStarLighting", EnableStarDrivenLighting && _starLightCount > 0 ? 1 : 0);
-            _sphereShader.SetUniform("uStarLightCount", _starLightCount);
-            _sphereShader.SetUniform("uStarLightFalloff", System.Math.Clamp(StarLightFalloff, 0.05f, 4.0f));
-            _sphereShader.SetUniform("uAmbientFloor", 0.0f);
-            _sphereShader.SetUniform("uEnableHdr", _settings.EnableHdr ? 1 : 0);
-            _sphereShader.SetUniform("uExposure", exposure);
-            _sphereShader.SetUniform("uEnableReflections", _settings.EnableReflections ? 1 : 0);
-            _sphereShader.SetUniform("uReflectionScale", System.Math.Clamp(_settings.ReflectionScale, 0.001f, 0.04f));
-            _sphereShader.SetUniform("uMaxReflectionSamples", System.Math.Clamp(_settings.MaxReflectionSamples, 1, 16));
-            _sphereShader.SetUniform("uResolution", new Vector2(width, height));
-            _sphereShader.SetUniform("uEnableGlowScaling", _settings.EnableGlowScaling ? 1 : 0);
-            _sphereShader.SetUniform("uGlowDistanceScale", System.Math.Clamp(_settings.GlowDistanceScale, 2.0f, 200.0f));
-            _sphereShader.SetUniform("uRayTraceShadows", EnableRayTracedShadows ? 1 : 0);
-            _sphereShader.SetUniform("uRayOccluderCount", _rayOccluderCount);
-            _sphereShader.SetUniform("uRayShadowStrength", System.Math.Clamp(RayShadowStrength, 0.0f, 1.0f));
-            _sphereShader.SetUniform("uRayShadowSoftness", System.Math.Clamp(RayShadowSoftness, 0.0005f, 0.20f));
-            _sphereShader.SetUniform("uBhQualityTier", (int)BlackHoleQualityTier);
-            _sphereShader.SetUniform("uBhPreset", (int)BlackHolePreset);
-            _sphereShader.SetUniform("uBhRingThickness", System.Math.Clamp(BlackHoleRingThickness, 0.08f, 1.0f));
-            _sphereShader.SetUniform("uBhLensStrength", System.Math.Clamp(BlackHoleLensingStrength, 0.0f, 2.5f));
-            _sphereShader.SetUniform("uBhDopplerBoost", System.Math.Clamp(BlackHoleDopplerBoost, 0.0f, 3.0f));
-            _sphereShader.SetUniform("uBhOpticalDepth", System.Math.Clamp(BlackHoleOpticalDepth, 0.0f, 4.0f));
-            _sphereShader.SetUniform("uBhTemperatureScale", System.Math.Clamp(BlackHoleTemperatureScale, 0.25f, 3.0f));
-            _sphereShader.SetUniform("uBhBloomScale", System.Math.Clamp(BlackHoleBloomScale * bloomEnabled * bloomIntensity * bloomRadiusScale * particleEmission, 0.0f, 4.0f));
-            _sphereShader.SetUniform("uBhDebugMode", (int)BlackHoleDebugMode);
-            _sphereShader.SetUniform("uBhParticleHeat", System.Math.Clamp(_bhParticleHeat, 0.0f, 1.0f));
-            _sphereShader.SetUniform("uBhParticleDensity", System.Math.Clamp(_bhParticleDensity, 0.0f, 1.0f));
-
-            for (int i = 0; i < _starLightCount; i++)
+            Action<ShaderProgram> applyUniforms = (s) => 
             {
-                Vector4 light = _starLightData[i];
-                _sphereShader.SetUniform($"uStarLights[{i}]", new Vector3(light.X, light.Y, light.Z));
-                _sphereShader.SetUniform($"uStarLightIntensity[{i}]", light.W);
-                _sphereShader.SetUniform($"uStarLightColor[{i}]", _starLightColorData[i]);
-            }
+                if (s == null) return;
+                s.Use();
+                s.SetUniform("uView", view);
+                s.SetUniform("uProjection", projection);
+                s.SetUniform("uViewPos", viewPos);
+                s.SetUniform("uTime", _timeSeconds);
+                s.SetUniform("uGlobalLuminosity", GlobalLuminosityScale * starEmission * exposure);
+                s.SetUniform("uGlobalGlow", GlobalGlowScale * starEmission * bloomEnabled * bloomIntensity);
+                s.SetUniform("uGlobalSaturation", GlobalSaturation);
+                s.SetUniform("uUseAlbedoAtlas", EnableAlbedoTextureMaps && _albedoAtlas != null ? 1 : 0);
+                s.SetUniform("uBodyAlbedoAtlas", 1);
+                s.SetUniform("uScreenTexture", 2);
+                s.SetUniform("uDepthTexture", 3);
+                s.SetUniform("uAlbedoBlend", System.Math.Clamp(AlbedoTextureBlend, 0.0f, 1.0f));
+                s.SetUniform("uEnableStarLighting", EnableStarDrivenLighting && _starLightCount > 0 ? 1 : 0);
+                s.SetUniform("uStarLightCount", _starLightCount);
+                s.SetUniform("uStarLightFalloff", System.Math.Clamp(StarLightFalloff, 0.05f, 4.0f));
+                s.SetUniform("uAmbientFloor", 0.0f);
+                s.SetUniform("uEnableHdr", _settings.EnableHdr ? 1 : 0);
+                s.SetUniform("uExposure", exposure);
+                s.SetUniform("uEnableReflections", _settings.EnableReflections ? 1 : 0);
+                s.SetUniform("uReflectionScale", System.Math.Clamp(_settings.ReflectionScale, 0.001f, 0.04f));
+                s.SetUniform("uMaxReflectionSamples", System.Math.Clamp(_settings.MaxReflectionSamples, 1, 16));
+                s.SetUniform("uResolution", new Vector2(width, height));
+                s.SetUniform("uEnableGlowScaling", _settings.EnableGlowScaling ? 1 : 0);
+                s.SetUniform("uGlowDistanceScale", System.Math.Clamp(_settings.GlowDistanceScale, 2.0f, 200.0f));
+                s.SetUniform("uRayTraceShadows", EnableRayTracedShadows ? 1 : 0);
+                s.SetUniform("uRayOccluderCount", _rayOccluderCount);
+                s.SetUniform("uRayShadowStrength", System.Math.Clamp(RayShadowStrength, 0.0f, 1.0f));
+                s.SetUniform("uRayShadowSoftness", System.Math.Clamp(RayShadowSoftness, 0.0005f, 0.20f));
+                s.SetUniform("uBhQualityTier", (int)BlackHoleQualityTier);
+                s.SetUniform("uBhPreset", (int)BlackHolePreset);
+                s.SetUniform("uBhRingThickness", System.Math.Clamp(BlackHoleRingThickness, 0.08f, 1.0f));
+                s.SetUniform("uBhLensStrength", System.Math.Clamp(BlackHoleLensingStrength, 0.0f, 2.5f));
+                s.SetUniform("uBhDopplerBoost", System.Math.Clamp(BlackHoleDopplerBoost, 0.0f, 3.0f));
+                s.SetUniform("uBhOpticalDepth", System.Math.Clamp(BlackHoleOpticalDepth, 0.0f, 4.0f));
+                s.SetUniform("uBhTemperatureScale", System.Math.Clamp(BlackHoleTemperatureScale, 0.25f, 3.0f));
+                s.SetUniform("uBhBloomScale", System.Math.Clamp(BlackHoleBloomScale * bloomEnabled * bloomIntensity * bloomRadiusScale * particleEmission, 0.0f, 4.0f));
+                s.SetUniform("uBhDebugMode", (int)BlackHoleDebugMode);
+                s.SetUniform("uBhParticleHeat", System.Math.Clamp(_bhParticleHeat, 0.0f, 1.0f));
+                s.SetUniform("uBhParticleDensity", System.Math.Clamp(_bhParticleDensity, 0.0f, 1.0f));
 
-            for (int i = 0; i < _rayOccluderCount; i++)
-            {
-                Vector4 occ = _rayOccluderData[i];
-                _sphereShader.SetUniform($"uRayOccluders[{i}]", new Vector3(occ.X, occ.Y, occ.Z));
-                _sphereShader.SetUniform($"uRayOccluderRadius[{i}]", occ.W);
-            }
+                for (int j = 0; j < _starLightCount; j++)
+                {
+                    Vector4 light = _starLightData[j];
+                    s.SetUniform($"uStarLights[{j}]", new Vector3(light.X, light.Y, light.Z));
+                    s.SetUniform($"uStarLightIntensity[{j}]", light.W);
+                    s.SetUniform($"uStarLightColor[{j}]", _starLightColorData[j]);
+                }
 
-            _sphereRenderer.Render(_gl, _sphereShader);
+                for (int j = 0; j < _rayOccluderCount; j++)
+                {
+                    Vector4 occ = _rayOccluderData[j];
+                    s.SetUniform($"uRayOccluders[{j}]", new Vector3(occ.X, occ.Y, occ.Z));
+                    s.SetUniform($"uRayOccluderRadius[{j}]", occ.W);
+                }
+            };
+
+            if (_settings.DebugMinimalMode) {
+                applyUniforms(_planetShader!);
+                _planetRenderer.Render(_gl, _planetShader!);
+                _starRenderer.Render(_gl, _planetShader!);
+                _galaxyRenderer.Render(_gl, _planetShader!);
+                _nebulaRenderer.Render(_gl, _planetShader!);
+                _blackHoleRenderer.Render(_gl, _planetShader!);
+            } else {
+                applyUniforms(_planetShader!); _planetRenderer.Render(_gl, _planetShader!);
+                applyUniforms(_starShader!); _starRenderer.Render(_gl, _starShader!);
+                applyUniforms(_galaxyShader!); _galaxyRenderer.Render(_gl, _galaxyShader!);
+                applyUniforms(_nebulaShader!); _nebulaRenderer.Render(_gl, _nebulaShader!);
+                applyUniforms(_blackHoleShader!); _blackHoleRenderer.Render(_gl, _blackHoleShader!);
+            }
             _gl.Disable(EnableCap.Blend);
         }
 
@@ -1031,7 +1089,8 @@ public class GLRenderer : IDisposable
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _gl.DepthMask(false);
-            _effectSphereRenderer.Render(_gl, _sphereShader!);
+            if (_planetShader != null) _planetShader.Use();
+            _effectSphereRenderer.Render(_gl, _planetShader!);
             _gl.DepthMask(true);
             _gl.Disable(EnableCap.Blend);
         }
@@ -1433,16 +1492,26 @@ public class GLRenderer : IDisposable
     public void Dispose()
     {
         ReleaseReflectionBuffers();
-        _sphereRenderer.Dispose();
+        _planetRenderer.Dispose();
+        _starRenderer.Dispose();
+        _galaxyRenderer.Dispose();
+        _nebulaRenderer.Dispose();
+        _blackHoleRenderer.Dispose();
         _effectSphereRenderer.Dispose();
         _accretionDiskRenderer?.Dispose();
         _albedoAtlas?.Dispose();
         _gridRenderer.Dispose();
         _lineRenderer.Dispose();
         _backgroundRenderer.Dispose();
-        _sphereShader?.Dispose();
+        _planetShader?.Dispose();
+        _starShader?.Dispose();
+        _galaxyShader?.Dispose();
+        _nebulaShader?.Dispose();
+        _blackHoleShader?.Dispose();
         _gridShader?.Dispose();
         _lineShader?.Dispose();
         _backgroundShader?.Dispose();
     }
 }
+
+

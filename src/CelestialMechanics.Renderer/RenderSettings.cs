@@ -15,7 +15,7 @@ public enum EmissionTier
 
 public class RenderSettings : INotifyPropertyChanged
 {
-    private bool _enableBloom = true;
+    private bool _enableBloom = false;
     private float _bloomIntensity = 1.2f;
     private float _bloomThreshold = 1.0f;
     private float _bloomRadius = 5.0f;
@@ -23,13 +23,13 @@ public class RenderSettings : INotifyPropertyChanged
     private bool _enableParticles = true;
     private int _maxParticles = 5000;
     private float _particleEmissionScale = 1.0f;
-    private bool _enableTrails = true;
+    private bool _enableTrails = false;
 
-    private bool _enableWaves = true;
+    private bool _enableWaves = false;
     private float _waveEmissionScale = 1.0f;
 
-    private bool _enableHdr = true;
-    private bool _enableReflections = true;
+    private bool _enableHdr = false;
+    private bool _enableReflections = false;
     private bool _enableGlowScaling = true;
     private bool _enableExplosions = true;
     private bool _enableBigBangMode;
@@ -53,11 +53,12 @@ public class RenderSettings : INotifyPropertyChanged
 
     private bool _debugOnlyParticles;
     private bool _debugOnlyWaves;
+    private bool _debugMinimalMode = true;
 
     private bool _showGrid = true;
     private bool _showAxes = true;
-    private bool _showOrbits = true;
-    private bool _showGravitationalWaves = true;
+    private bool _showOrbits = false;
+    private bool _showGravitationalWaves = false;
     private bool _showVelocityVectors;
     private bool _showForceVectors;
     private bool _showBoundingBoxes;
@@ -124,6 +125,7 @@ public class RenderSettings : INotifyPropertyChanged
     // Debug
     public bool DebugOnlyParticles { get => _debugOnlyParticles; set => SetField(ref _debugOnlyParticles, value); }
     public bool DebugOnlyWaves { get => _debugOnlyWaves; set => SetField(ref _debugOnlyWaves, value); }
+    public bool DebugMinimalMode { get => _debugMinimalMode; set => SetField(ref _debugMinimalMode, value); }
 
     // Scene/View toggles for menu bindings
     public bool ShowGrid { get => _showGrid; set => SetField(ref _showGrid, value); }

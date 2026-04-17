@@ -71,7 +71,7 @@ float fbm(vec3 p)
 {
     float a = 0.5;
     float v = 0.0;
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 2; i++)
     {
         v += a * valueNoise3(p);
         p = p * 2.03 + vec3(2.1, 4.7, 1.3);
@@ -107,15 +107,15 @@ void main()
     vec3 noiseCoord = vec3((uv + camOffsetNebula) * 3.0, uTime * 0.02);
 
     // Multiple noise layers for irregular, non-spherical shape
-    float gasLayer = fbm(noiseCoord);
-    float dustLayer = fbm(noiseCoord * 1.7 + vec3(8.0, 3.0, 1.0));
-    float plasmaLayer = fbm(noiseCoord * 2.4 + vec3(-5.0, 2.0, 3.0));
+    float gasLayer = 0.0;
+    float dustLayer = 0.0;
+    float plasmaLayer = 0.0;
 
     // Asymmetric, stretched shapes — NOT uniform blobs
-    float warpX = fbm(noiseCoord * 0.8 + vec3(12.0, 0.0, 3.5));
-    float warpY = fbm(noiseCoord * 0.9 + vec3(0.0, 7.0, 1.2));
+    float warpX = 0.0;
+    float warpY = 0.0;
     vec3 warpedCoord = noiseCoord + vec3(warpX * 0.4, warpY * 0.3, 0.0);
-    float stretchedGas = fbm(warpedCoord * 1.5);
+    float stretchedGas = 0.0;
 
     float gasAlpha = smoothstep(0.42, 0.92, gasLayer) * smoothstep(0.35, 0.85, stretchedGas);
     float dustAlpha = smoothstep(0.55, 0.95, dustLayer) * 0.5;

@@ -279,5 +279,5 @@ public class PhysicsConfig
     /// CPU (default) = existing CPU backends selected by other flags.
     /// GPU = OpenGL 4.3 compute shader backend with automatic CPU fallback.
     /// </summary>
-    public ComputeMode ComputeBackend { get; set; } = ComputeMode.CPU;
+    public ComputeMode ComputeBackend { get; set; } = ComputeMode.GPU;
 }
