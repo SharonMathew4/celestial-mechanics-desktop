@@ -67,4 +67,27 @@ public partial class ProjectHubOverlay : UserControl
             }
         }
     }
+
+    /// <summary>
+    /// Handles right-click context menu "Delete Project".
+    /// </summary>
+    private void OnDeleteProjectClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem item && item.Tag is ProjectInfo project)
+        {
+            var result = MessageBox.Show(
+                $"Are you sure you want to permanently delete project '{project.Name}'?\nThis action cannot be undone.",
+                "Delete Project",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                if (DataContext is ProjectHubViewModel vm)
+                {
+                    vm.DeleteProject(project);
+                }
+            }
+        }
+    }
 }

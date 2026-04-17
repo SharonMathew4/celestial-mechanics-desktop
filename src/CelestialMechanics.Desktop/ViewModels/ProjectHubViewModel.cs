@@ -124,6 +124,24 @@ public sealed partial class ProjectHubViewModel : ObservableObject
         }
     }
 
+    public void DeleteProject(ProjectInfo project)
+    {
+        if (project == null) return;
+        
+        if (_projectService.DeleteProject(project.Path, deleteFiles: true))
+        {
+            RefreshProjects();
+        }
+        else
+        {
+            System.Windows.MessageBox.Show(
+                "Could not delete this project. The files may be in use.",
+                "Celestial Mechanics — Error",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
     /// <summary>Gets a human-readable relative time string.</summary>
     public static string GetRelativeTime(DateTime date)
     {

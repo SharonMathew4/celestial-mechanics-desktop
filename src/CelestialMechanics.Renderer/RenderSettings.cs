@@ -33,6 +33,9 @@ public class RenderSettings : INotifyPropertyChanged
     private bool _enableGlowScaling = true;
     private bool _enableExplosions = true;
     private bool _enableBigBangMode;
+    private bool _enableAtmosphere = true;
+    private bool _enableNightLights = true;
+    private bool _enableHighQualityShading = true;
 
     private float _glowDistanceScale = 18.0f;
     private float _reflectionScale = 0.012f;
@@ -98,6 +101,9 @@ public class RenderSettings : INotifyPropertyChanged
     public bool EnableGlowScaling { get => _enableGlowScaling; set => SetField(ref _enableGlowScaling, value); }
     public bool EnableExplosions { get => _enableExplosions; set => SetField(ref _enableExplosions, value); }
     public bool EnableBigBangMode { get => _enableBigBangMode; set => SetField(ref _enableBigBangMode, value); }
+    public bool EnableAtmosphere { get => _enableAtmosphere; set => SetField(ref _enableAtmosphere, value); }
+    public bool EnableNightLights { get => _enableNightLights; set => SetField(ref _enableNightLights, value); }
+    public bool EnableHighQualityShading { get => _enableHighQualityShading; set => SetField(ref _enableHighQualityShading, value); }
 
     // Distanced-based visual scaling
     public float GlowDistanceScale { get => _glowDistanceScale; set => SetField(ref _glowDistanceScale, value); }

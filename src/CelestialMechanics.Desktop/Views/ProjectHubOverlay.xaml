@@ -214,6 +214,11 @@
                                         <Border Style="{StaticResource ProjectItemBorder}"
                                                 MouseLeftButtonUp="OnProjectClicked"
                                                 Tag="{Binding}">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Delete Project" Click="OnDeleteProjectClicked" Tag="{Binding}"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>

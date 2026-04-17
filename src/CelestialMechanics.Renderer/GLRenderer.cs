@@ -537,13 +537,13 @@ public class GLRenderer : IDisposable
                 framePosition,
                 coreRadius,
                 new Vector4(0.98f, 0.95f, 0.88f, 0.32f * fx.Intensity * fade),
-                new Vector4(7.0f, 1.55f * fx.Intensity, 1.25f * fx.Intensity, 0.55f));
+                new Vector4(10.0f, 1.55f * fx.Intensity, 1.0f - fade, 0.0f));
 
             AddEffectBody(
                 framePosition,
                 plumeRadius,
                 new Vector4(0.62f, 0.76f, 1.0f, 0.19f * fx.Intensity * fade),
-                new Vector4(7.0f, 0.95f * fx.Intensity, 1.05f * fx.Intensity, 0.85f));
+                new Vector4(10.0f, 0.95f * fx.Intensity, 1.0f - fade, 0.0f));
         }
 
         if (!_settings.EnableExplosions)
@@ -570,19 +570,19 @@ public class GLRenderer : IDisposable
                 framePosition,
                 coreRadius,
                 new Vector4(1.0f, 0.98f, 0.96f, 0.35f * fade),
-                new Vector4(7.0f, explosion.Brightness * tierBoost, 1.8f * tierBoost, 0.25f));
+                new Vector4(10.0f, explosion.Brightness * tierBoost, 1.0f - fade, (float)explosion.Tier));
 
             AddEffectBody(
                 framePosition,
                 shockRadius,
                 new Vector4(explosion.Color.X, explosion.Color.Y, explosion.Color.Z, 0.22f * fade),
-                new Vector4(7.0f, explosion.Brightness * 0.75f * tierBoost, 1.3f * tierBoost, 0.7f));
+                new Vector4(10.0f, explosion.Brightness * 0.75f * tierBoost, 1.0f - fade, (float)explosion.Tier));
 
             AddEffectBody(
                 framePosition,
                 shellRadius,
                 new Vector4(1.0f, 0.75f, 0.42f, 0.14f * fade),
-                new Vector4(7.0f, explosion.Brightness * 0.45f * tierBoost, 1.1f, 0.95f));
+                new Vector4(10.0f, explosion.Brightness * 0.45f * tierBoost, 1.0f - fade, (float)explosion.Tier));
 
             float cameraDistance = Vector3.Distance(_camera.Position, framePosition);
             float lod = cameraDistance > 40.0f ? 0.25f : (cameraDistance > 16.0f ? 0.5f : 1.0f);
@@ -610,7 +610,7 @@ public class GLRenderer : IDisposable
                     pos,
                     particleRadius,
                     col,
-                    new Vector4(7.0f, explosion.Brightness * 0.15f, 0.95f, 0.7f));
+                    new Vector4(10.0f, explosion.Brightness * 0.15f, 1.0f - fade, (float)explosion.Tier));
             }
         }
     }
@@ -1039,6 +1039,9 @@ public class GLRenderer : IDisposable
                 s.SetUniform("uRayOccluderCount", _rayOccluderCount);
                 s.SetUniform("uRayShadowStrength", System.Math.Clamp(RayShadowStrength, 0.0f, 1.0f));
                 s.SetUniform("uRayShadowSoftness", System.Math.Clamp(RayShadowSoftness, 0.0005f, 0.20f));
+                s.SetUniform("uEnableAtmosphere", _settings.EnableAtmosphere ? 1 : 0);
+                s.SetUniform("uEnableNightLights", _settings.EnableNightLights ? 1 : 0);
+                s.SetUniform("uEnableHighQualityShading", _settings.EnableHighQualityShading ? 1 : 0);
                 s.SetUniform("uBhQualityTier", (int)BlackHoleQualityTier);
                 s.SetUniform("uBhPreset", (int)BlackHolePreset);
                 s.SetUniform("uBhRingThickness", System.Math.Clamp(BlackHoleRingThickness, 0.08f, 1.0f));
@@ -1089,8 +1092,8 @@ public class GLRenderer : IDisposable
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _gl.DepthMask(false);
-            if (_planetShader != null) _planetShader.Use();
-            _effectSphereRenderer.Render(_gl, _planetShader!);
+            if (_starShader != null) _starShader.Use();
+            _effectSphereRenderer.Render(_gl, _starShader!);
             _gl.DepthMask(true);
             _gl.Disable(EnableCap.Blend);
         }
