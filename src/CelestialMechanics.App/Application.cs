@@ -343,9 +343,42 @@ public class Application
 
         if (placement.State == PlacementState.PlacementCommitted)
         {
-            int bodyId = _imGuiOverlay.ReserveBodyId();
-            if (_imGuiOverlay.TrySpawnTemplateAt(bodyId, placement.Draft.AnchorPosition, placement.Draft.InitialVelocity, out var body))
-                _simulationEngine.AddBody(body);
+            var templateForGalaxyCheck = _imGuiOverlay.SelectedTemplate;
+            if (templateForGalaxyCheck != null && GalaxySpawner.IsGalaxyTemplate(templateForGalaxyCheck.Name))
+            {
+                // Galaxy placement: generate particle cloud instead of single body
+                int startId = _imGuiOverlay.ReserveBodyId();
+                var galaxyBodies = GalaxySpawner.GenerateGalaxy(
+                    templateForGalaxyCheck.Name,
+                    startId,
+                    placement.Draft.AnchorPosition,
+                    placement.Draft.InitialVelocity);
+
+                // Batch-add: concat existing bodies + galaxy particles in one allocation
+                var existing = _simulationEngine.Bodies ?? Array.Empty<PhysicsBody>();
+                var combined = new PhysicsBody[existing.Length + galaxyBodies.Length];
+                existing.CopyTo(combined, 0);
+                galaxyBodies.CopyTo(combined, existing.Length);
+                _simulationEngine.SetBodies(combined);
+
+                // Reserve remaining IDs
+                for (int i = 1; i < galaxyBodies.Length; i++)
+                    _imGuiOverlay.ReserveBodyId();
+
+                // Auto-zoom camera out to fit galaxy
+                _renderer.Camera.Distance = GalaxySpawner.GalaxyCameraDistance;
+                _renderer.Camera.Target = new Vector3(
+                    (float)(placement.Draft.AnchorPosition.X * GalaxySpawner.PositionScale),
+                    0f,
+                    (float)(placement.Draft.AnchorPosition.Z * GalaxySpawner.PositionScale));
+            }
+            else
+            {
+                // Normal single-body placement
+                int bodyId = _imGuiOverlay.ReserveBodyId();
+                if (_imGuiOverlay.TrySpawnTemplateAt(bodyId, placement.Draft.AnchorPosition, placement.Draft.InitialVelocity, out var body))
+                    _simulationEngine.AddBody(body);
+            }
 
             placement.Reset();
             _renderer.ClearPlacementPreview();

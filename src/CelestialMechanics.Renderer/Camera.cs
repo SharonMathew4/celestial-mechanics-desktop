@@ -9,7 +9,7 @@ public class Camera
     public float Distance { get; set; } = 10f;
     public Vector3 Target { get; set; } = Vector3.Zero;
     public float NearPlane { get; set; } = 0.01f;
-    public float FarPlane { get; set; } = 10000f;
+    public float FarPlane { get; set; } = 500000f;
     public float Fov { get; set; } = 60f;
 
     private float _smoothYaw;
@@ -73,7 +73,7 @@ public class Camera
     public void ProcessMouseZoom(float scrollDelta)
     {
         Distance *= MathF.Pow(0.9f, scrollDelta);
-        Distance = MathF.Max(0.1f, MathF.Min(10000f, Distance));
+        Distance = MathF.Max(0.1f, MathF.Min(100000f, Distance));
     }
 
     public void FocusOn(Vector3 position)

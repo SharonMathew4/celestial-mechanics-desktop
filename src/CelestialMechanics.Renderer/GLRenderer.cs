@@ -73,6 +73,7 @@ public class GLRenderer : IDisposable
     private InstancedSphereRenderer _sphereRenderer = new();
     private InstancedSphereRenderer _effectSphereRenderer = new();
     private AccretionDiskRenderer? _accretionDiskRenderer;
+    private GalaxyParticleRenderer _galaxyParticleRenderer = new();
     private GridRenderer _gridRenderer = new();
     private LineRenderer _lineRenderer = new();
     private ShaderProgram? _sphereShader;
@@ -281,6 +282,7 @@ public class GLRenderer : IDisposable
         _gridRenderer.Initialize(gl);
         _lineRenderer.Initialize(gl);
         _backgroundRenderer.Initialize(gl);
+        _galaxyParticleRenderer.Initialize(gl);
     }
 
     private static string FindShaderDirectory()
@@ -342,6 +344,16 @@ public class GLRenderer : IDisposable
         // Update sphere instances
         _sphereRenderer.UpdateInstances(_compositeBodies, compositeCount);
         _effectSphereRenderer.UpdateInstances(_effectBodies, _effectBodyCount);
+
+        // Update galaxy particle renderer
+        if (_settings.EnableGalaxyRenderer)
+        {
+            _galaxyParticleRenderer.BasePointSize = _settings.GalaxyBasePointSize;
+            _galaxyParticleRenderer.JwstColorIntensity = _settings.JwstColorIntensity;
+            _galaxyParticleRenderer.EnableDiffractionSpikes = _settings.EnableDiffractionSpikes;
+            _galaxyParticleRenderer.DiffractionSpikeThreshold = _settings.DiffractionSpikeThreshold;
+            _galaxyParticleRenderer.UpdateParticles(_compositeBodies, compositeCount, _currentFrameOrigin);
+        }
 
         if (_accretionDiskRenderer != null)
         {
@@ -1048,6 +1060,17 @@ public class GLRenderer : IDisposable
                 bloomScale: System.Math.Clamp(BlackHoleBloomScale * bloomEnabled * bloomIntensity * bloomRadiusScale * particleEmission, 0.0f, 4.0f),
                 debugMode: (int)BlackHoleDebugMode);
             _accretionDiskRenderer.Draw(viewProjection);
+        }
+
+        // Render galaxy particles (single draw call for 50K+ particles)
+        if (renderSceneBodies && _settings.EnableGalaxyRenderer)
+        {
+            float exposure2 = System.Math.Clamp(_settings.Exposure, 0.1f, 4.0f);
+            _galaxyParticleRenderer.Render(
+                view, projection,
+                (float)height, _timeSeconds,
+                new Vector2(width, height),
+                _settings.EnableHdr, exposure2);
         }
 
         // Render line overlays (trails, velocity arrows, placement vectors)

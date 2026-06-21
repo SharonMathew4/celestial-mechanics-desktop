@@ -2134,7 +2134,35 @@ public class ImGuiOverlay
             if (ImGui.Button("Place Body", new Vector2(-1, 30)))
             {
                 var manualTemplate = selectedTemplate with { Mass = _newBodyMass };
-                if (Enum.TryParse<BodyType>(manualTemplate.BodyType, ignoreCase: true, out var parsedType))
+                if (GalaxySpawner.IsGalaxyTemplate(manualTemplate.Name))
+                {
+                    // Galaxy placement: generate particle cloud
+                    int startId = _nextBodyId;
+                    var galaxyBodies = GalaxySpawner.GenerateGalaxy(
+                        manualTemplate.Name,
+                        startId,
+                        new CelestialMechanics.Math.Vec3d(_newBodyPos.X, _newBodyPos.Y, _newBodyPos.Z),
+                        new CelestialMechanics.Math.Vec3d(_newBodyVel.X, _newBodyVel.Y, _newBodyVel.Z));
+
+                    // Batch-add: concat existing bodies + galaxy particles in one allocation
+                    var existing = _engine.Bodies ?? Array.Empty<PhysicsBody>();
+                    var combined = new PhysicsBody[existing.Length + galaxyBodies.Length];
+                    existing.CopyTo(combined, 0);
+                    galaxyBodies.CopyTo(combined, existing.Length);
+                    _engine.SetBodies(combined);
+
+                    _nextBodyId += galaxyBodies.Length;
+
+                    // Auto-zoom camera out
+                    _renderer.Camera.Distance = GalaxySpawner.GalaxyCameraDistance;
+                    _renderer.Camera.Target = new Vector3(
+                        _newBodyPos.X * (float)GalaxySpawner.PositionScale,
+                        0f,
+                        _newBodyPos.Z * (float)GalaxySpawner.PositionScale);
+
+                    ResetStabilityBaselines();
+                }
+                else if (Enum.TryParse<BodyType>(manualTemplate.BodyType, ignoreCase: true, out var parsedType))
                 {
                     var body = new PhysicsBody(
                         _nextBodyId,
