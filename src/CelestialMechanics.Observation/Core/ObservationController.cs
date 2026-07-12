@@ -2,6 +2,8 @@ using System;
 using CelestialMechanics.Observation.Camera;
 using CelestialMechanics.Observation.Scene;
 using CelestialMechanics.Observation.Services;
+using CelestialMechanics.Observation.Time;
+using CelestialMechanics.Observation.Universe;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CelestialMechanics.Observation.Core;
@@ -29,6 +31,21 @@ public sealed class ObservationController
     /// Gets the resolved scene manager.
     /// </summary>
     public SceneManager? Scene => _serviceProvider?.GetService<SceneManager>();
+
+    /// <summary>
+    /// Gets the resolved time manager.
+    /// </summary>
+    public TimeManager? TimeManager => _serviceProvider?.GetService<TimeManager>();
+
+    /// <summary>
+    /// Gets the resolved universe manager.
+    /// </summary>
+    public UniverseManager? UniverseManager => _serviceProvider?.GetService<UniverseManager>();
+
+    /// <summary>
+    /// Gets the resolved camera behavior controller.
+    /// </summary>
+    public CameraBehaviorController? CameraBehavior => _serviceProvider?.GetService<CameraBehaviorController>();
 
     /// <summary>
     /// Whether the controller is currently running.
@@ -69,11 +86,20 @@ public sealed class ObservationController
         if (!_isRunning)
             return;
 
-        if (Camera is ObservationCamera obsCamera)
+        // 1. Advance simulation time
+        TimeManager?.Tick(deltaTime);
+
+        // 2. Update camera (use behavior controller if available, otherwise raw camera)
+        if (CameraBehavior != null)
+        {
+            CameraBehavior.Update(deltaTime);
+        }
+        else if (Camera is ObservationCamera obsCamera)
         {
             obsCamera.Update(deltaTime);
         }
 
+        // 3. Update scene graph
         Scene?.Update(deltaTime);
     }
 }

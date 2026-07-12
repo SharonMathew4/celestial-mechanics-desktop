@@ -9,6 +9,12 @@ using CelestialMechanics.Observation.Database;
 using CelestialMechanics.Observation.World;
 using CelestialMechanics.Observation.Import;
 using CelestialMechanics.Observation.Resources;
+using CelestialMechanics.Observation.Events;
+using CelestialMechanics.Observation.Objects;
+using CelestialMechanics.Observation.Search;
+using CelestialMechanics.Observation.Selection;
+using CelestialMechanics.Observation.Time;
+using CelestialMechanics.Observation.Universe;
 
 namespace CelestialMechanics.Observation.Core;
 
@@ -97,13 +103,23 @@ public sealed class ObservationBootstrap
         services.AddSingleton<LabelRenderer>();
         services.AddSingleton<SkyRenderer>();
 
-        // 8. Placeholder Service Adaptors
+        // 8. Placeholder Service Adaptors (Navigation, Layers remain as placeholders)
         services.AddSingleton<INavigationService, ObservationNavigationService>();
-        services.AddSingleton<ITimeService, ObservationTimeService>();
         services.AddSingleton<ILayerService, ObservationLayerService>();
-        services.AddSingleton<ISelectionService, ObservationSelectionService>();
 
-        // 9. Central Controller
+        // 9. Phase 5 — Universe Core Services
+        services.AddSingleton<EventBus>();
+        services.AddSingleton<UniverseHierarchy>();
+        services.AddSingleton<UniverseManager>();
+        services.AddSingleton<TimeManager>();
+        services.AddSingleton<ITimeService>(sp => sp.GetRequiredService<TimeManager>());
+        services.AddSingleton<SelectionManager>();
+        services.AddSingleton<ISelectionService>(sp => sp.GetRequiredService<SelectionManager>());
+        services.AddSingleton<SearchService>();
+        services.AddSingleton<CelestialBodyFactory>();
+        services.AddSingleton<CameraBehaviorController>();
+
+        // 10. Central Controller
         services.AddSingleton<ObservationController>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -145,6 +161,10 @@ public sealed class ObservationBootstrap
         rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<GridRenderer>());
         rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<LabelRenderer>());
         rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<SkyRenderer>());
+
+        // Initialize Universe Manager
+        var universeManager = _serviceProvider.GetRequiredService<UniverseManager>();
+        universeManager.Initialize();
 
         Controller.Initialize(_serviceProvider);
         _isInitialized = true;

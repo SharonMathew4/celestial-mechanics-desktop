@@ -4,7 +4,7 @@ This document summarizes the current development status, completed systems, perf
 
 ## 1. Executive Summary
 
-Celestial Mechanics is a fully functional 3D gravity simulator. The core physics libraries, rendering engines, and desktop UI wrappers are complete and validated by 287 unit/integration tests. A parallel C++/CUDA engine exists for future GPU expansion, but the primary track remains the managed .NET 8 implementation.
+Celestial Mechanics is a fully functional 3D gravity simulator. The core physics libraries, rendering engines, and desktop UI wrappers are complete and validated by 287+ unit/integration tests (91 in Observation Mode alone). A parallel C++/CUDA engine exists for future GPU expansion, but the primary track remains the managed .NET 8 implementation.
 
 ## 2. Completed Modules & Systems
 
@@ -27,6 +27,17 @@ Celestial Mechanics is a fully functional 3D gravity simulator. The core physics
 - **Simulation Overlay (ImGui)**: Built-in stats, control dashboard, inspector panels.
 - **WPF IDE Desktop**: Full-featured WPF dashboard with outliner panel, scene graph tree views, project templates, save/load, and properties panels.
 - **Scenario Save/Load**: Native `.cesim` file serialization support.
+
+### Phase 5 — Universe Core (Observation Mode)
+- **Celestial Body System**: Complete scientific object model with 10 body types (Star, Planet, Moon, Asteroid, Comet, Galaxy, Nebula, BlackHole, Spacecraft) and abstract CelestialBody base class.
+- **Universe Manager**: Central registry for all celestial bodies with hierarchy management, type-based queries, and scene graph synchronization.
+- **Time Engine**: Full Julian Date time system with SimulationClock, TimeManager, UTC conversion, and support for 9 speed presets (Real-Time through 1 Year/sec) with play/pause/reverse.
+- **Coordinate Frames**: 7 reference frames (Heliocentric, Barycentric, Geocentric, Galactic, Equatorial, Ecliptic, Camera Relative) with bidirectional transformations.
+- **Object Factory**: CelestialBodyFactory creating bodies with matching SceneNodes and automatic registration.
+- **Search Service**: Name (case-insensitive substring + catalog refs), ID, and type-based search.
+- **Selection Manager**: CelestialBody-aware selection with ISelectionService compatibility and event integration.
+- **Camera Behaviors**: Free, Focus, Orbit, Follow modes with FrameSelection and GoToObject capabilities.
+- **Event System**: Lightweight publish-subscribe EventBus for loose coupling between universe subsystems.
 
 ## 3. Current Performance & Observations
 - **Simulation Frequency**: Up to 10,000 bodies simulated at 60 FPS in managed C# using multi-threaded task-based integration.
@@ -52,4 +63,5 @@ Celestial Mechanics is a fully functional 3D gravity simulator. The core physics
 - [x] Implement independent Observation Mode (Scientific Astronomical Visualization using JPL data).
 - [x] NASA/Gaia database catalog pipelines (Milestone 3 Data Pipeline).
 - [x] Ingestion and modular rendering frameworks (Milestone 4 Rendering Framework).
+- [x] Phase 5 — Universe Core: Object model, universe manager, time engine, coordinate frames, factory, search, selection, camera behaviors, event system (78 new tests).
 - [ ] Multi-layer UI for scientific annotations.
