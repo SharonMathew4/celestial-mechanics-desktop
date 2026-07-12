@@ -230,13 +230,59 @@
                 </Grid>
             </Border>
 
-            <!-- ── Card 2: OBSERVATION (DISABLED) ── -->
-            <Border Width="220" Height="280"
+            <!-- ── Card 2: OBSERVATION ── -->
+            <Border x:Name="ObsCard" Width="220" Height="280"
                     Background="{StaticResource BgSurfaceBrush}"
                     BorderBrush="{StaticResource BorderBaseBrush}"
                     BorderThickness="1" CornerRadius="16"
-                    Margin="0,0,32,0" Opacity="0.5"
-                    IsEnabled="False">
+                    Margin="0,0,32,0" Cursor="Hand">
+                <Border.Effect>
+                    <DropShadowEffect x:Name="ObsGlow" Color="{StaticResource AccentCyan}"
+                                      BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                </Border.Effect>
+                <Border.Triggers>
+                    <EventTrigger RoutedEvent="MouseEnter">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ObsGlow"
+                                                 Storyboard.TargetProperty="BlurRadius"
+                                                 To="24" Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetName="ObsGlow"
+                                                 Storyboard.TargetProperty="Opacity"
+                                                 To="0.6" Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                    <EventTrigger RoutedEvent="MouseLeave">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ObsGlow"
+                                                 Storyboard.TargetProperty="BlurRadius"
+                                                 To="0" Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                                <DoubleAnimation Storyboard.TargetName="ObsGlow"
+                                                 Storyboard.TargetProperty="Opacity"
+                                                 To="0" Duration="0:0:0.3">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </Border.Triggers>
+
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="80"/>
@@ -246,42 +292,34 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- PHASE 3 badge -->
-                    <Border Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top"
-                            Background="{StaticResource BgTertiaryBrush}"
-                            CornerRadius="4" Padding="6,2" Margin="-4,-4,0,0">
-                        <TextBlock Text="PHASE 3" FontSize="9" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    </Border>
-
-                    <!-- Telescope icon (SVG path) -->
+                    <!-- Telescope icon (SVG path) — now in cyan accent -->
                     <Canvas Grid.Row="0" Width="60" Height="60" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Path Data="M 15 45 L 30 15 L 35 17 L 22 43 Z"
-                              Fill="{StaticResource TextDisabledBrush}" Opacity="0.6"/>
+                              Fill="{StaticResource AccentCyanBrush}" Opacity="0.8"/>
                         <Path Data="M 25 20 L 45 10 L 48 16 L 28 26 Z"
-                              Fill="{StaticResource TextDisabledBrush}" Opacity="0.4"/>
+                              Fill="{StaticResource AccentCyanBrush}" Opacity="0.6"/>
                         <Ellipse Width="8" Height="8" Canvas.Left="42" Canvas.Top="8"
-                                 Stroke="{StaticResource TextDisabledBrush}" StrokeThickness="1" Fill="Transparent"/>
+                                 Stroke="{StaticResource AccentCyanBrush}" StrokeThickness="1" Fill="Transparent"/>
                         <!-- Tripod legs -->
                         <Line X1="20" Y1="42" X2="10" Y2="55"
-                              Stroke="{StaticResource TextDisabledBrush}" StrokeThickness="1.5"/>
+                              Stroke="{StaticResource AccentCyanBrush}" StrokeThickness="1.5"/>
                         <Line X1="22" Y1="43" X2="30" Y2="55"
-                              Stroke="{StaticResource TextDisabledBrush}" StrokeThickness="1.5"/>
+                              Stroke="{StaticResource AccentCyanBrush}" StrokeThickness="1.5"/>
                     </Canvas>
 
                     <TextBlock Grid.Row="1" Text="OBSERVATION" FontSize="20" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextDisabledBrush}" HorizontalAlignment="Center"
+                               Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"
                                Margin="0,4,0,0"/>
 
                     <TextBlock Grid.Row="2" Text="Browse star catalogs&#x0a;and real sky data"
-                               FontSize="12" Foreground="{StaticResource TextDisabledBrush}"
+                               FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
                                HorizontalAlignment="Center" TextAlignment="Center"
                                Margin="0,6,0,0" LineHeight="18"/>
 
-                    <TextBlock Grid.Row="4" Text="COMING SOON"
-                               FontSize="13" FontWeight="SemiBold"
-                               Foreground="{StaticResource TextDisabledBrush}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Height="44" Padding="0,12"/>
+                    <Button Grid.Row="4" Content="LAUNCH →"
+                            Style="{StaticResource ModeButtonStyle}"
+                            HorizontalAlignment="Stretch"
+                            Command="{Binding LaunchObservationCommand}"/>
                 </Grid>
             </Border>
 

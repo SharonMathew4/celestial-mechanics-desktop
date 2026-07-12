@@ -4,5 +4,6 @@ public enum AppMode
 {
     Home,
     Simulation,
+    Observation,
     Analysis,
 }

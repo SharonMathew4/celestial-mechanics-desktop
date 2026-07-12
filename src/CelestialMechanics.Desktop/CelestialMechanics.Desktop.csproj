@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <ParallelWpfMarkupCompilation>false</ParallelWpfMarkupCompilation>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -37,6 +38,7 @@
     <ProjectReference Include="..\CelestialMechanics.Physics\CelestialMechanics.Physics.csproj" />
     <ProjectReference Include="..\CelestialMechanics.Math\CelestialMechanics.Math.csproj" />
     <ProjectReference Include="..\CelestialMechanics.Data\CelestialMechanics.Data.csproj" />
+    <ProjectReference Include="..\CelestialMechanics.Observation\CelestialMechanics.Observation.csproj" />
   </ItemGroup>
 
   <!-- NuGet packages — exact versions pinned, no floating -->

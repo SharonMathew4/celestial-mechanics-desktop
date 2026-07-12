@@ -29,6 +29,7 @@ public partial class ModeSelectWindow : Window
         DataContext = _vm;
 
         _vm.SimulationLaunched += OnSimulationLaunched;
+        _vm.ObservationLaunched += OnObservationLaunched;
         _vm.ExitConfirmed += () => Application.Current.Shutdown();
 
         Loaded += OnLoaded;
@@ -56,6 +57,7 @@ public partial class ModeSelectWindow : Window
 
         // Wire card hover border color transitions (can't do ColorAnimation in XAML EventTriggers easily)
         WireCardHover(SimCard, FindResource("BorderAccentBrush") as Brush, FindResource("BgSurfaceHoverBrush") as Brush);
+        WireCardHover(ObsCard, FindResource("AccentCyanBrush") as Brush, FindResource("BgSurfaceHoverBrush") as Brush);
         WireCardHover(ExitCard, FindResource("StatusRedBrush") as Brush, FindResource("BgSurfaceHoverBrush") as Brush);
 
         // Wire exit card click (whole card is clickable)
@@ -149,6 +151,37 @@ public partial class ModeSelectWindow : Window
             {
                 // Fallback gradient already showing — no action needed
             }
+        }
+    }
+
+    /// <summary>
+    /// When LAUNCH is clicked on the Observation card, open the
+    /// Observation Mode window.
+    /// </summary>
+    private void OnObservationLaunched()
+    {
+        try
+        {
+            var observationWindow = new ObservationWindow();
+            observationWindow.Closed += (_, _) =>
+            {
+                // When Observation closes, re-show mode select
+                var modeSelect = new ModeSelectWindow();
+                modeSelect.Show();
+            };
+            observationWindow.Show();
+            Close();
+        }
+        catch (Exception ex)
+        {
+            CrashLogger.WriteLog(ex);
+            MessageBox.Show(
+                $"Failed to launch Observation Mode.\n\n" +
+                $"Error: {ex.Message}\n" +
+                $"Reference: {CrashLogger.LastErrorId}",
+                "Celestial Mechanics — Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
