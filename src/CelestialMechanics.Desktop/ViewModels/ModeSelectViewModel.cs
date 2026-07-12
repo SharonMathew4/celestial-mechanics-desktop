@@ -13,6 +13,9 @@ public sealed partial class ModeSelectViewModel : ObservableObject
     /// <summary>Raised when user clicks LAUNCH on the Simulation card.</summary>
     public event Action? SimulationLaunched;
 
+    /// <summary>Raised when user clicks LAUNCH on the Observation card.</summary>
+    public event Action? ObservationLaunched;
+
     /// <summary>Raised when user confirms exit.</summary>
     public event Action? ExitConfirmed;
 
@@ -26,6 +29,12 @@ public sealed partial class ModeSelectViewModel : ObservableObject
     private void LaunchSimulation()
     {
         SimulationLaunched?.Invoke();
+    }
+
+    [RelayCommand]
+    private void LaunchObservation()
+    {
+        ObservationLaunched?.Invoke();
     }
 
     [RelayCommand]
