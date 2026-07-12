@@ -19,6 +19,11 @@ public interface ISceneNode
     string Name { get; }
 
     /// <summary>
+    /// Categorized type of the node (e.g. Star, Planet, Orbit, Grid, etc.)
+    /// </summary>
+    string NodeType { get; set; }
+
+    /// <summary>
     /// The local transform of this node relative to its parent.
     /// </summary>
     Transform Transform { get; }

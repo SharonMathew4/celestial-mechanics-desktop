@@ -7,6 +7,8 @@ using CelestialMechanics.Observation.Scene;
 using CelestialMechanics.Observation.Catalog;
 using CelestialMechanics.Observation.Database;
 using CelestialMechanics.Observation.World;
+using CelestialMechanics.Observation.Import;
+using CelestialMechanics.Observation.Resources;
 
 namespace CelestialMechanics.Observation.Core;
 
@@ -47,28 +49,61 @@ public sealed class ObservationBootstrap
         services.AddSingleton<IObservationDatabase>(sp => sp.GetRequiredService<DatabaseService>());
         services.AddSingleton<ObservationCatalog>();
         services.AddSingleton<IObservationCatalog>(sp => sp.GetRequiredService<ObservationCatalog>());
+        services.AddSingleton<AstronomicalObjectRepository>();
 
-        // 2. Camera & Render Services
+        // 2. Camera, Render Engine & Settings
         services.AddSingleton<ObservationCamera>();
         services.AddSingleton<ICameraService>(sp => sp.GetRequiredService<ObservationCamera>());
         services.AddSingleton<ObservationRenderer>();
         services.AddSingleton<IRenderService>(sp => sp.GetRequiredService<ObservationRenderer>());
+        services.AddSingleton<RenderEngine>();
+        services.AddSingleton<RendererManager>();
+        services.AddTransient<RenderQueue>();
+        services.AddSingleton<RenderSettings>();
 
-        // 3. Scene & World Systems
+        // 3. Scene, World & Raycasting Picking
         services.AddSingleton<SceneManager>();
         services.AddSingleton<WorldManager>();
+        services.AddSingleton<ScenePicker>();
 
-        // 4. Catalog Management
+        // 4. Central Resource Management
+        services.AddSingleton<ResourceLoader>();
+
+        // 5. Catalog Management & Providers
         services.AddSingleton<CatalogService>();
         services.AddSingleton<ICatalogService>(sp => sp.GetRequiredService<CatalogService>());
+        services.AddSingleton<StarProvider>();
+        services.AddSingleton<PlanetProvider>();
+        services.AddSingleton<GalaxyProvider>();
+        services.AddSingleton<NebulaProvider>();
+        services.AddSingleton<SpacecraftProvider>();
         
-        // 5. Placeholder Service Adaptors
+        // 6. Ingestion Pipeline
+        services.AddSingleton<ImportManager>();
+        services.AddTransient<HipparcosImporter>();
+        services.AddTransient<GaiaImporter>();
+        services.AddTransient<SpiceImporter>();
+        services.AddTransient<MessierImporter>();
+        services.AddTransient<NgcImporter>();
+        services.AddTransient<SimbadImporter>();
+        services.AddTransient<ExoplanetImporter>();
+        services.AddTransient<MpcImporter>();
+
+        // 7. Renderers
+        services.AddSingleton<StarRenderer>();
+        services.AddSingleton<PlanetRenderer>();
+        services.AddSingleton<OrbitRenderer>();
+        services.AddSingleton<GridRenderer>();
+        services.AddSingleton<LabelRenderer>();
+        services.AddSingleton<SkyRenderer>();
+
+        // 8. Placeholder Service Adaptors
         services.AddSingleton<INavigationService, ObservationNavigationService>();
         services.AddSingleton<ITimeService, ObservationTimeService>();
         services.AddSingleton<ILayerService, ObservationLayerService>();
         services.AddSingleton<ISelectionService, ObservationSelectionService>();
 
-        // 6. Central Controller
+        // 9. Central Controller
         services.AddSingleton<ObservationController>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -84,13 +119,32 @@ public sealed class ObservationBootstrap
 
         // Register default providers to CatalogService
         var catalogService = _serviceProvider.GetRequiredService<ICatalogService>();
-        var catalog = _serviceProvider.GetRequiredService<ObservationCatalog>();
         
-        catalogService.RegisterProvider(new StarProvider(catalog));
-        catalogService.RegisterProvider(new PlanetProvider());
-        catalogService.RegisterProvider(new GalaxyProvider());
-        catalogService.RegisterProvider(new NebulaProvider());
-        catalogService.RegisterProvider(new SpacecraftProvider());
+        catalogService.RegisterProvider(_serviceProvider.GetRequiredService<StarProvider>());
+        catalogService.RegisterProvider(_serviceProvider.GetRequiredService<PlanetProvider>());
+        catalogService.RegisterProvider(_serviceProvider.GetRequiredService<GalaxyProvider>());
+        catalogService.RegisterProvider(_serviceProvider.GetRequiredService<NebulaProvider>());
+        catalogService.RegisterProvider(_serviceProvider.GetRequiredService<SpacecraftProvider>());
+
+        // Register default importers to ImportManager
+        var importManager = _serviceProvider.GetRequiredService<ImportManager>();
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<HipparcosImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<GaiaImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<SpiceImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<MessierImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<NgcImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<SimbadImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<ExoplanetImporter>());
+        importManager.RegisterImporter(_serviceProvider.GetRequiredService<MpcImporter>());
+
+        // Register default renderers to RendererManager
+        var rendererManager = _serviceProvider.GetRequiredService<RendererManager>();
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<StarRenderer>());
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<PlanetRenderer>());
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<OrbitRenderer>());
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<GridRenderer>());
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<LabelRenderer>());
+        rendererManager.RegisterRenderer(_serviceProvider.GetRequiredService<SkyRenderer>());
 
         Controller.Initialize(_serviceProvider);
         _isInitialized = true;

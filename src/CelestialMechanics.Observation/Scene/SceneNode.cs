@@ -19,6 +19,9 @@ public class SceneNode : ISceneNode
     public string Name { get; }
 
     /// <inheritdoc />
+    public string NodeType { get; set; } = "Generic";
+
+    /// <inheritdoc />
     public Transform Transform { get; } = new();
 
     /// <inheritdoc />

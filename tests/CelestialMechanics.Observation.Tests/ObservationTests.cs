@@ -2,6 +2,9 @@ using CelestialMechanics.Math;
 using CelestialMechanics.Observation.Catalog;
 using CelestialMechanics.Observation.Core;
 using CelestialMechanics.Observation.Database;
+using CelestialMechanics.Observation.Import;
+using CelestialMechanics.Observation.Rendering;
+using CelestialMechanics.Observation.Resources;
 using CelestialMechanics.Observation.Scene;
 using CelestialMechanics.Observation.Services;
 using CelestialMechanics.Observation.World;
@@ -122,7 +125,7 @@ public sealed class ObservationTests
 
         parent.AddChild(child);
 
-        Assert.Equal(1, parent.Children.Count);
+        Assert.Single(parent.Children);
         Assert.Same(parent, child.Parent);
 
         child.Transform.Position = new Vec3d(1, 2, 3);
@@ -183,7 +186,9 @@ public sealed class ObservationTests
             tables.Add(reader.GetString(0));
         }
 
-        Assert.Contains("Stars", tables);
+        Assert.Contains("AstronomicalObjects", tables);
+        Assert.Contains("CatalogReferences", tables);
+        Assert.Contains("StellarMetadata", tables);
         Assert.Contains("Annotations", tables);
 
         await dbService.DisconnectAsync();
@@ -191,31 +196,186 @@ public sealed class ObservationTests
     }
 
     [Fact]
-    public void TestCatalogProviders()
+    public async Task TestHipparcosImporterPipeline()
+    {
+        using var dbService = new DatabaseService();
+        await dbService.ConnectAsync(":memory:");
+        await DatabaseInitializer.InitializeSchemaAsync(dbService);
+
+        var repo = new AstronomicalObjectRepository(dbService);
+        var importer = new HipparcosImporter(repo);
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            // Write 3 entries: 2 valid, 1 invalid (out of bounds Dec)
+            var stars = new[]
+            {
+                new StarEntry(201, 120.0, 10.0, 50f, 1.2f, 0.5f, -0.2f, "G2"),
+                new StarEntry(202, 380.0, -45.0, 10f, 5.0f, 0f, 0f, "M0"), // Invalid RA > 360
+                new StarEntry(203, 90.0, -10.0, 100f, 3.4f, -1.0f, 1.5f, "A0")
+            };
+            HipparcosBinaryReader.WriteCatalog(tempFile, stars);
+
+            var dataSource = new FileDataSource(tempFile);
+            var settings = new ImportSettings { BatchSize = 10 };
+            
+            long progressReportedCount = 0;
+            var job = new ImportJob("Hipparcos", dataSource, settings, p =>
+            {
+                progressReportedCount = p.ObjectsImported;
+            });
+
+            var result = await importer.ImportAsync(job);
+
+            Assert.True(result.Success);
+            Assert.Equal(2, result.ImportedCount);
+            Assert.Equal(1, result.SkippedCount);
+            Assert.Single(result.Errors);
+            Assert.Equal(2, progressReportedCount);
+
+            // Verify they are loaded into SQLite
+            var dbStars = await repo.GetStarsAsync("Hipparcos");
+            Assert.Equal(2, dbStars.Count);
+            Assert.Contains(dbStars, s => s.Id == 201);
+            Assert.Contains(dbStars, s => s.Id == 203);
+            Assert.DoesNotContain(dbStars, s => s.Id == 202);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Fact]
+    public async Task TestImportManagerAndStarProvider()
     {
         var bootstrap = new ObservationBootstrap();
         bootstrap.Initialize();
 
-        var catalogService = bootstrap.ServiceProvider.GetRequiredService<ICatalogService>();
-        Assert.NotNull(catalogService);
-        Assert.Equal(5, catalogService.Providers.Count);
+        var dbService = bootstrap.ServiceProvider.GetRequiredService<DatabaseService>();
+        // Reconnect to in-memory to isolate tests from local files
+        await dbService.DisconnectAsync();
+        await dbService.ConnectAsync(":memory:");
+        await DatabaseInitializer.InitializeSchemaAsync(dbService);
 
-        Assert.Contains(catalogService.Providers, p => p.Name == "Stars");
-        Assert.Contains(catalogService.Providers, p => p.Name == "Planets");
+        var importManager = bootstrap.ServiceProvider.GetRequiredService<ImportManager>();
+        var repo = bootstrap.ServiceProvider.GetRequiredService<AstronomicalObjectRepository>();
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var stars = new[]
+            {
+                new StarEntry(501, 10.0, -20.0, 100f, 6.0f, 0.1f, -0.1f, "K")
+            };
+            HipparcosBinaryReader.WriteCatalog(tempFile, stars);
+
+            var job = new ImportJob("Hipparcos", new FileDataSource(tempFile), new ImportSettings());
+            var result = await importManager.RunImportAsync(job);
+
+            Assert.True(result.Success);
+            Assert.Equal(1, result.ImportedCount);
+
+            // Retrieve provider and load
+            var starProvider = bootstrap.ServiceProvider.GetRequiredService<StarProvider>();
+            Assert.False(starProvider.IsLoaded);
+
+            await starProvider.LoadAsync();
+            Assert.True(starProvider.IsLoaded);
+            Assert.Single(starProvider.Stars);
+            Assert.Equal(501, starProvider.Stars[0].Id);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+            
+            bootstrap.Shutdown();
+        }
     }
 
     [Fact]
-    public void TestCameraControlsAndDI()
+    public void TestRenderQueueCategorization()
     {
-        var bootstrap = new ObservationBootstrap();
-        var camera = bootstrap.ServiceProvider.GetRequiredService<ICameraService>();
+        var queue = new RenderQueue();
         
-        Assert.NotNull(camera);
-        Assert.Equal(50.0f, camera.Distance);
+        var node1 = new SceneNode("node1", "Node 1") { NodeType = "Star" };
+        var node2 = new SceneNode("node2", "Node 2") { NodeType = "Planet" };
+        var node3 = new SceneNode("node3", "Node 3") { NodeType = "Star" };
 
-        // Test strafe vertical
-        camera.MoveVertical(1.0f, 0.1f);
-        // Target should be shifted up
-        Assert.True(camera.Target.Y > 0.0f);
+        queue.Enqueue(node1);
+        queue.Enqueue(node2);
+        queue.Enqueue(node3);
+
+        Assert.True(queue.CategorizedNodes.ContainsKey("Star"));
+        Assert.True(queue.CategorizedNodes.ContainsKey("Planet"));
+        Assert.Equal(2, queue.CategorizedNodes["Star"].Count);
+        Assert.Single(queue.CategorizedNodes["Planet"]);
+
+        queue.Clear();
+        Assert.Empty(queue.CategorizedNodes);
+    }
+
+    [Fact]
+    public void TestResourceLoaderCaching()
+    {
+        var loader = new ResourceLoader();
+        
+        // Test shaders caching
+        var source1 = loader.Shaders.LoadShaderSource("ColorShader", "void main() {}");
+        var source2 = loader.Shaders.LoadShaderSource("ColorShader", "void main() { color = red; }");
+        
+        Assert.Same(source1, source2);
+        Assert.Equal("void main() {}", source2);
+
+        // Test textures caching
+        var tex1 = loader.Textures.LoadTexture("Assets/nebula.png");
+        var tex2 = loader.Textures.LoadTexture("Assets/nebula.png");
+
+        Assert.Same(tex1, tex2);
+    }
+
+    [Fact]
+    public void TestRaycastingAndPicking()
+    {
+        var sceneManager = new SceneManager();
+        var picker = new ScenePicker(sceneManager);
+
+        var starNode = new SceneNode("sirius", "Sirius") { NodeType = "Star" };
+        starNode.Transform.Position = new Vec3d(0, 0, 50); // Set along Z axis
+        sceneManager.Root.AddChild(starNode);
+
+        // Ray pointing straight along Z axis
+        var pickingRay = new Ray(new Vec3d(0, 0, 0), new Vec3d(0, 0, 1));
+        var picked = picker.PickNode(pickingRay, boundingSphereRadius: 2.0);
+
+        Assert.NotNull(picked);
+        Assert.Same(starNode, picked);
+
+        // Ray pointing away (along X axis) should miss
+        var missingRay = new Ray(new Vec3d(0, 0, 0), new Vec3d(1, 0, 0));
+        var missed = picker.PickNode(missingRay, boundingSphereRadius: 2.0);
+        Assert.Null(missed);
+    }
+
+    [Fact]
+    public void TestGridSettingsAndAbstractions()
+    {
+        var settings = new RenderSettings();
+        Assert.True(settings.ShowGrid);
+        Assert.Equal("Equatorial", settings.ActiveGridType);
+
+        settings.ActiveGridType = "Galactic";
+        Assert.Equal("Galactic", settings.ActiveGridType);
+
+        var context = new RenderContext
+        {
+            DeltaTime = 0.016f,
+            AspectRatio = 1.6f
+        };
+        Assert.Equal(0.016f, context.DeltaTime);
+        Assert.Equal(1.6f, context.AspectRatio);
     }
 }

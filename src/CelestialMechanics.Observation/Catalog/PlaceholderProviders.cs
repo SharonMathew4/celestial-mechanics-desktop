@@ -2,39 +2,42 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using CelestialMechanics.Observation.Database;
 
 namespace CelestialMechanics.Observation.Catalog;
 
 /// <summary>
-/// Provider managing the stellar catalog dataset.
+/// Provider managing the stellar catalog dataset, retrieved from SQLite.
 /// </summary>
 public sealed class StarProvider : ICatalogProvider
 {
-    private readonly ObservationCatalog _catalog;
+    private readonly AstronomicalObjectRepository _repository;
+    private List<StarEntry> _stars = new();
 
     /// <inheritdoc />
     public string Name => "Stars";
 
     /// <inheritdoc />
-    public bool IsLoaded => _catalog.IsLoaded;
+    public bool IsLoaded { get; private set; }
 
     /// <summary>
     /// Gets the list of loaded star entries.
     /// </summary>
-    public IReadOnlyList<StarEntry> Stars => _catalog.Stars;
+    public IReadOnlyList<StarEntry> Stars => _stars;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StarProvider"/> class.
     /// </summary>
-    public StarProvider(ObservationCatalog catalog)
+    public StarProvider(AstronomicalObjectRepository repository)
     {
-        _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
 
     /// <inheritdoc />
-    public Task LoadAsync(CancellationToken cancellationToken = default)
+    public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        return _catalog.LoadAsync(cancellationToken);
+        _stars = await _repository.GetStarsAsync("Hipparcos");
+        IsLoaded = true;
     }
 }
 

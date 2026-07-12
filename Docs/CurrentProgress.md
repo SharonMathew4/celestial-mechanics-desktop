@@ -49,6 +49,7 @@ Celestial Mechanics is a fully functional 3D gravity simulator. The core physics
 
 ### Remaining Milestones
 - [ ] Implement C# P/Invoke wrappers to wire native C++/CUDA solvers into Simulation Mode.
-- [ ] Implement independent Observation Mode (Scientific Astronomical Visualization using JPL data).
-- [ ] NASA/Gaia database catalog pipelines.
+- [x] Implement independent Observation Mode (Scientific Astronomical Visualization using JPL data).
+- [x] NASA/Gaia database catalog pipelines (Milestone 3 Data Pipeline).
+- [x] Ingestion and modular rendering frameworks (Milestone 4 Rendering Framework).
 - [ ] Multi-layer UI for scientific annotations.
