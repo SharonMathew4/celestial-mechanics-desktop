@@ -93,6 +93,13 @@ public class RenderState
         BodyType.Asteroid or BodyType.Comet => new Vector4(0.5f, 0.5f, 0.4f, 1.0f),
         BodyType.NeutronStar => new Vector4(0.5f, 0.8f, 1.0f, 1.0f),
         BodyType.BlackHole => new Vector4(0.02f, 0.02f, 0.02f, 1.0f), // Opaque black core
+        // JWST Galaxy palette (derived from NGC 1073, M104, M106, NGC 1792 imagery)
+        BodyType.GalaxyDiskParticle => new Vector4(0.95f, 0.90f, 0.75f, 0.85f),
+        BodyType.GalaxyBulgeParticle => new Vector4(0.98f, 0.82f, 0.55f, 0.92f),
+        BodyType.GalaxyHaloParticle => new Vector4(0.35f, 0.40f, 0.55f, 0.08f),
+        BodyType.DustCloud => new Vector4(0.72f, 0.28f, 0.08f, 0.65f),
+        BodyType.YoungStarCluster => new Vector4(0.25f, 0.78f, 1.0f, 0.90f),
+        BodyType.HIIRegion => new Vector4(0.92f, 0.30f, 0.68f, 0.85f),
         _ => new Vector4(0.6f, 0.6f, 0.6f, 1.0f),
     };
 
@@ -110,6 +117,12 @@ public class RenderState
             BodyType.Comet => 4f,
             BodyType.NeutronStar => 5f,
             BodyType.BlackHole => 7f,
+            BodyType.GalaxyDiskParticle => 8f,
+            BodyType.GalaxyBulgeParticle => 9f,
+            BodyType.GalaxyHaloParticle => 10f,
+            BodyType.DustCloud => 11f,
+            BodyType.YoungStarCluster => 12f,
+            BodyType.HIIRegion => 13f,
             _ => 1f,
         };
 
@@ -128,6 +141,12 @@ public class RenderState
             BodyType.Star => 1.0f + 0.18f * luminosity,
             BodyType.NeutronStar => 1.3f + 0.2f * luminosity,
             BodyType.BlackHole => 0.45f,
+            BodyType.GalaxyDiskParticle => 0.3f + 0.1f * luminosity,
+            BodyType.GalaxyBulgeParticle => 0.5f + 0.15f * luminosity,
+            BodyType.YoungStarCluster => 0.8f + 0.2f * luminosity,
+            BodyType.HIIRegion => 0.6f + 0.15f * luminosity,
+            BodyType.DustCloud => 0.05f,
+            BodyType.GalaxyHaloParticle => 0.01f,
             _ => 0.02f + 0.04f * luminosity,
         };
 

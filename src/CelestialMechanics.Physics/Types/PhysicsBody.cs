@@ -63,6 +63,12 @@ public struct PhysicsBody
             BodyType.Comet => 180.0,
             BodyType.GasGiant => 130.0,
             BodyType.Planet or BodyType.RockyPlanet => 288.0,
+            BodyType.GalaxyDiskParticle => 5000.0,
+            BodyType.GalaxyBulgeParticle => 4500.0,
+            BodyType.GalaxyHaloParticle => 100.0,
+            BodyType.DustCloud => 30.0,
+            BodyType.YoungStarCluster => 15000.0,
+            BodyType.HIIRegion => 8000.0,
             _ => 250.0,
         };
     }
@@ -87,6 +93,11 @@ public struct PhysicsBody
         {
             BodyType.Star => 3.828e26 * System.Math.Pow(System.Math.Max(mass, 0.08), 3.5),
             BodyType.NeutronStar => 1.0e25 * System.Math.Pow(System.Math.Max(temperature, 1.0) / 1.0e6, 4.0),
+            BodyType.GalaxyDiskParticle => 3.828e26 * System.Math.Pow(System.Math.Max(mass, 0.01), 2.5) * 0.1,
+            BodyType.GalaxyBulgeParticle => 3.828e26 * System.Math.Pow(System.Math.Max(mass, 0.01), 2.0) * 0.08,
+            BodyType.YoungStarCluster => 3.828e26 * System.Math.Pow(System.Math.Max(mass, 0.01), 3.5) * 2.0,
+            BodyType.HIIRegion => 3.828e26 * System.Math.Pow(System.Math.Max(mass, 0.01), 2.0) * 0.5,
+            BodyType.DustCloud => 1.0e18 * System.Math.Max(mass, 0.01),
             _ => 0.0,
         };
     }

@@ -44,6 +44,20 @@ public static class DensityModel
     /// <summary>Default density for comets.</summary>
     public const double CometDensity = 500.0;
 
+    // ── Phase 8: Galaxy particle densities ─────────────────────────────────
+    /// <summary>Galaxy disk star particle (low density → larger visual radius).</summary>
+    public const double GalaxyDiskDensity = 200.0;
+    /// <summary>Galaxy bulge star particle.</summary>
+    public const double GalaxyBulgeDensity = 400.0;
+    /// <summary>Dark matter halo particle (very low — gravitational only).</summary>
+    public const double GalaxyHaloDensity = 50.0;
+    /// <summary>Interstellar dust cloud.</summary>
+    public const double DustCloudDensity = 80.0;
+    /// <summary>Young star-forming cluster.</summary>
+    public const double YoungStarClusterDensity = 300.0;
+    /// <summary>H-II ionised region.</summary>
+    public const double HIIRegionDensity = 100.0;
+
     /// <summary>
     /// Compute the radius of a uniform-density sphere.
     /// r = (3m / 4πρ)^(1/3)
@@ -85,6 +99,12 @@ public static class DensityModel
         BodyType.NeutronStar => NeutronStarDensity,
         BodyType.Comet => CometDensity,
         BodyType.BlackHole => 1.0, // Placeholder — BH uses Schwarzschild radius
+        BodyType.GalaxyDiskParticle => GalaxyDiskDensity,
+        BodyType.GalaxyBulgeParticle => GalaxyBulgeDensity,
+        BodyType.GalaxyHaloParticle => GalaxyHaloDensity,
+        BodyType.DustCloud => DustCloudDensity,
+        BodyType.YoungStarCluster => YoungStarClusterDensity,
+        BodyType.HIIRegion => HIIRegionDensity,
         _ => StarDensity
     };
 
