@@ -75,3 +75,6 @@ publish_log*.txt
 stderr.txt
 stdout.txt
 imgui.ini
+
+# AI Workspace
+AI/
