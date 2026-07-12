@@ -240,11 +240,11 @@ public partial class ViewportPanel : UserControl
 
         if (vm.PlacementPhase == PlacementPhase.ChoosingPosition)
         {
-            DrawGhostBody(vm.GhostX, vm.GhostY, vm.SelectedBodyType, 0.45, dashed: true);
+            DrawGhostBody(vm.GhostX, vm.GhostY, vm.SelectedBodyType, 0.35, dashed: true);
             return;
         }
 
-        DrawGhostBody(vm.PlacedX, vm.PlacedY, vm.SelectedBodyType, 0.95, dashed: false);
+        DrawGhostBody(vm.PlacedX, vm.PlacedY, vm.SelectedBodyType, 0.85, dashed: false);
 
         var start = WorldToScreen(vm.PlacedX, vm.PlacedY);
         var end = WorldToScreen(vm.VelocityEndX, vm.VelocityEndY);
@@ -333,7 +333,7 @@ public partial class ViewportPanel : UserControl
         if (vm.PlacementPhase == PlacementPhase.ChoosingPosition)
         {
             _renderer.SetPlacementPreview(
-                CreateGhostBody(vm.GhostX, vm.GhostY, vm.GhostZ, vm.SelectedBodyType, 0.45f),
+                CreateGhostBody(vm.GhostX, vm.GhostY, vm.GhostZ, vm.SelectedBodyType, 0.35f),
                 null,
                 null,
                 null);
@@ -353,7 +353,7 @@ public partial class ViewportPanel : UserControl
             .ToList();
 
         _renderer.SetPlacementPreview(
-            CreateGhostBody(vm.PlacedX, vm.PlacedY, vm.PlacedZ, vm.SelectedBodyType, 0.95f),
+            CreateGhostBody(vm.PlacedX, vm.PlacedY, vm.PlacedZ, vm.SelectedBodyType, 0.85f),
             new System.Numerics.Vector3(vm.PlacedX, vm.PlacedY, vm.PlacedZ),
             new System.Numerics.Vector3(vm.VelocityEndX, vm.VelocityEndY, vm.VelocityEndZ),
             preview);
