@@ -154,4 +154,35 @@ public class RenderSettings : INotifyPropertyChanged
         EmissionTier.BigBang => 2000.0f,
         _ => 1.0f,
     };
+
+    // ── Phase 8: Galaxy Rendering ──────────────────────────────────────────
+
+    private bool _enableGalaxyRenderer = true;
+    private bool _enableDiffractionSpikes = true;
+    private bool _enableVolumetricDust;
+    private float _jwstColorIntensity = 1.15f;
+    private float _diffractionSpikeThreshold = 1.5f;
+    private float _galaxyBasePointSize = 0.4f;
+    private int _dustGridResolution = 64;
+
+    /// <summary>Enable the dedicated billboard renderer for galaxy particles.</summary>
+    public bool EnableGalaxyRenderer { get => _enableGalaxyRenderer; set => SetField(ref _enableGalaxyRenderer, value); }
+
+    /// <summary>Enable 6-pointed Webb diffraction spikes on luminous particles.</summary>
+    public bool EnableDiffractionSpikes { get => _enableDiffractionSpikes; set => SetField(ref _enableDiffractionSpikes, value); }
+
+    /// <summary>Enable volumetric dust extinction (expensive, default OFF).</summary>
+    public bool EnableVolumetricDust { get => _enableVolumetricDust; set => SetField(ref _enableVolumetricDust, value); }
+
+    /// <summary>JWST color palette intensity multiplier.</summary>
+    public float JwstColorIntensity { get => _jwstColorIntensity; set => SetField(ref _jwstColorIntensity, value); }
+
+    /// <summary>Luminosity threshold for diffraction spike rendering.</summary>
+    public float DiffractionSpikeThreshold { get => _diffractionSpikeThreshold; set => SetField(ref _diffractionSpikeThreshold, value); }
+
+    /// <summary>Base point size for galaxy billboard particles.</summary>
+    public float GalaxyBasePointSize { get => _galaxyBasePointSize; set => SetField(ref _galaxyBasePointSize, value); }
+
+    /// <summary>Volumetric dust grid resolution (32-128). Higher = better quality, worse FPS.</summary>
+    public int DustGridResolution { get => _dustGridResolution; set => SetField(ref _dustGridResolution, value); }
 }

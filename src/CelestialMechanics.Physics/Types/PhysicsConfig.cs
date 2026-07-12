@@ -280,4 +280,44 @@ public class PhysicsConfig
     /// GPU = OpenGL 4.3 compute shader backend with automatic CPU fallback.
     /// </summary>
     public ComputeMode ComputeBackend { get; set; } = ComputeMode.GPU;
+
+    // ── Phase 8: Galaxy Simulation ──────────────────────────────────────────
+
+    /// <summary>
+    /// When true, Chandrasekhar dynamical friction is applied to massive bodies
+    /// (mass > MinMassForFriction). Required for realistic galaxy mergers with
+    /// tidal tail formation (Tadpole, Mice Galaxies).
+    /// </summary>
+    public bool EnableDynamicalFriction { get; set; } = false;
+
+    /// <summary>
+    /// Coulomb logarithm ln(Λ) for dynamical friction. Typical range: 3–10.
+    /// Higher values produce stronger orbital decay.
+    /// </summary>
+    public double DynamicalFrictionLnLambda { get; set; } = 3.0;
+
+    /// <summary>
+    /// Minimum body mass to experience dynamical friction. Bodies below this
+    /// mass are treated as the background field.
+    /// </summary>
+    public double DynamicalFrictionMinMass { get; set; } = 10.0;
+
+    /// <summary>
+    /// Density wave perturbation strength for ring galaxy formation.
+    /// 0 = no wave, 0.5–1.0 = Cartwheel-style ring formation.
+    /// </summary>
+    public double DensityWaveStrength { get; set; } = 0.0;
+
+    /// <summary>
+    /// Radial wavenumber for density wave function.
+    /// Controls the spacing between concentric rings.
+    /// </summary>
+    public double DensityWaveWavenumber { get; set; } = 2.0;
+
+    /// <summary>
+    /// Local density compression threshold (dρ/dt) above which disk particles
+    /// are visually promoted to starburst rendering (bright cyan/pink).
+    /// </summary>
+    public double StarburstDensityThreshold { get; set; } = 2.0;
 }
+

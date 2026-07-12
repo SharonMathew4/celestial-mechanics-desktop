@@ -47,6 +47,7 @@ public class Application
     private bool _followSelectedBody;
     private ApplicationMode _mode = ApplicationMode.Simulation;
     private bool _windowShown;
+    private bool _imGuiWantsMouseCached;
 
     public Application(IWindow window) { _window = window; }
 
@@ -241,6 +242,11 @@ public class Application
         _imGuiOverlay.Render(_lastPhysicsTime, _lastRenderTime, _simulationEngine.Bodies?.Length ?? 0);
         _imguiController.Render();
 
+        // Cache WantCaptureMouse here where ImGui state is valid (after NewFrame/Render).
+        // HandleInteractivePlacement runs in OnUpdate before NewFrame, so reading
+        // WantCaptureMouse there gives a stale/incorrect value.
+        _imGuiWantsMouseCached = ImGuiNET.ImGui.GetIO().WantCaptureMouse;
+
         if (!_windowShown)
         {
             _window.IsVisible = true;
@@ -275,28 +281,36 @@ public class Application
             return;
         }
 
-        bool cursorInPanel = !ImGuiNET.ImGui.GetIO().WantCaptureMouse;
-        if (!TryGetCursorWorldPosition(out var cursorWorld))
-            cursorInPanel = false;
+        // Determine if cursor is in the simulation viewport (not over an ImGui panel).
+        // Note: WantCaptureMouse may be stale here (OnUpdate runs before NewFrame),
+        // so we also accept the cursor as valid whenever we can compute a world position
+        // and no ImGui window is currently hovered.
+        bool hasWorldPos = TryGetCursorWorldPosition(out var cursorWorld);
+        // Use the cached value from the previous render pass where ImGui state is valid.
+        bool cursorInViewport = hasWorldPos && !_imGuiWantsMouseCached;
 
         if (placement.State == PlacementState.Idle ||
             placement.State == PlacementState.PlacementCanceled ||
             placement.State == PlacementState.PlacementCommitted)
         {
-            if (cursorInPanel)
+            // Begin ghost follow whenever we have a valid world position.
+            // The ghost should always track the cursor; anchoring/committing
+            // still requires cursorInViewport to prevent accidental clicks on UI.
+            if (hasWorldPos)
             {
                 placement.BeginGhostFollow(
                     _imGuiOverlay.SelectedCategoryName,
                     selectedTemplate.Name,
                     cursorWorld,
-                    cursorInPanel);
+                    cursorInViewport);
             }
         }
 
         if (placement.State == PlacementState.GhostFollow)
         {
-            placement.UpdateGhostPosition(cursorWorld, cursorInPanel);
-            if (_inputHandler.LeftClickThisFrame && cursorInPanel)
+            if (hasWorldPos)
+                placement.UpdateGhostPosition(cursorWorld, cursorInViewport);
+            if (_inputHandler.LeftClickThisFrame && cursorInViewport)
                 placement.AnchorAt(cursorWorld);
         }
 
@@ -337,15 +351,48 @@ public class Application
 
             placement.SetPreviewSamples(previewSamples);
 
-            if (_inputHandler.LeftReleasedThisFrame && cursorInPanel)
+            if (_inputHandler.LeftReleasedThisFrame && cursorInViewport)
                 placement.Commit();
         }
 
         if (placement.State == PlacementState.PlacementCommitted)
         {
-            int bodyId = _imGuiOverlay.ReserveBodyId();
-            if (_imGuiOverlay.TrySpawnTemplateAt(bodyId, placement.Draft.AnchorPosition, placement.Draft.InitialVelocity, out var body))
-                _simulationEngine.AddBody(body);
+            var templateForGalaxyCheck = _imGuiOverlay.SelectedTemplate;
+            if (templateForGalaxyCheck != null && GalaxySpawner.IsGalaxyTemplate(templateForGalaxyCheck.Name))
+            {
+                // Galaxy placement: generate particle cloud instead of single body
+                int startId = _imGuiOverlay.ReserveBodyId();
+                var galaxyBodies = GalaxySpawner.GenerateGalaxy(
+                    templateForGalaxyCheck.Name,
+                    startId,
+                    placement.Draft.AnchorPosition,
+                    placement.Draft.InitialVelocity);
+
+                // Batch-add: concat existing bodies + galaxy particles in one allocation
+                var existing = _simulationEngine.Bodies ?? Array.Empty<PhysicsBody>();
+                var combined = new PhysicsBody[existing.Length + galaxyBodies.Length];
+                existing.CopyTo(combined, 0);
+                galaxyBodies.CopyTo(combined, existing.Length);
+                _simulationEngine.SetBodies(combined);
+
+                // Reserve remaining IDs
+                for (int i = 1; i < galaxyBodies.Length; i++)
+                    _imGuiOverlay.ReserveBodyId();
+
+                // Auto-zoom camera out to fit galaxy
+                _renderer.Camera.Distance = GalaxySpawner.GalaxyCameraDistance;
+                _renderer.Camera.Target = new Vector3(
+                    (float)(placement.Draft.AnchorPosition.X * GalaxySpawner.PositionScale),
+                    0f,
+                    (float)(placement.Draft.AnchorPosition.Z * GalaxySpawner.PositionScale));
+            }
+            else
+            {
+                // Normal single-body placement
+                int bodyId = _imGuiOverlay.ReserveBodyId();
+                if (_imGuiOverlay.TrySpawnTemplateAt(bodyId, placement.Draft.AnchorPosition, placement.Draft.InitialVelocity, out var body))
+                    _simulationEngine.AddBody(body);
+            }
 
             placement.Reset();
             _renderer.ClearPlacementPreview();
@@ -370,13 +417,17 @@ public class Application
                 parsedType = BodyType.Custom;
 
             var baseColor = selectedTemplate.Color;
+            float ghostAlpha = placement.State == PlacementState.GhostFollow ? 0.35f : 0.85f;
             ghost = new RenderBody
             {
                 Id = -1,
                 Position = new Vector3((float)placement.Draft.GhostPosition.X, (float)placement.Draft.GhostPosition.Y, (float)placement.Draft.GhostPosition.Z),
                 Radius = (float)System.Math.Max(selectedTemplate.Radius, 0.01),
-                Color = new Vector4(baseColor.X, baseColor.Y, baseColor.Z, 0.35f),
+                Color = new Vector4(baseColor.X, baseColor.Y, baseColor.Z, ghostAlpha),
                 BodyType = (int)parsedType,
+                VisualParams = new Vector4(1f, 0.25f, 0.2f, 0.2f),
+                TextureLayer = 0,
+                StarTemperatureK = parsedType == BodyType.Star ? 5772f : 0f,
             };
         }
 
